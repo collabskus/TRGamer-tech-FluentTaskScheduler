@@ -30,41 +30,45 @@
                     <!-- Category Filter -->
                     <StackPanel Spacing="8">
                         <TextBlock x:Name="DashboardFilterCategory" x:Uid="DashboardFilterCategory" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" Margin="4,0,0,0"/>
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.AvailableCategories, Mode=OneWay}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="8"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="viewmodels:FilterItem">
-                                    <ToggleButton Content="{x:Bind Name}" 
-                                                  IsChecked="{x:Bind IsSelected, Mode=OneWay}"
-                                                  Click="CategoryToggle_Click"
-                                                  CornerRadius="4" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" IsScrollInertiaEnabled="False">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.AvailableCategories, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodels:FilterItem">
+                                        <ToggleButton Content="{x:Bind Name}"
+                                                      IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                                                      Click="CategoryToggle_Click"
+                                                      CornerRadius="4" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </StackPanel>
 
                     <!-- Tag Filter -->
                     <StackPanel Grid.Column="1" Spacing="8">
                         <TextBlock x:Name="DashboardFilterTag" x:Uid="DashboardFilterTag" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" Margin="4,0,0,0"/>
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.AvailableTags, Mode=OneWay}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="8"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="viewmodels:FilterItem">
-                                    <ToggleButton Content="{x:Bind Name}" 
-                                                  IsChecked="{x:Bind IsSelected, Mode=OneWay}"
-                                                  Click="TagToggle_Click"
-                                                  CornerRadius="4" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" IsScrollInertiaEnabled="False">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.AvailableTags, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="8"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodels:FilterItem">
+                                        <ToggleButton Content="{x:Bind Name}"
+                                                      IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                                                      Click="TagToggle_Click"
+                                                      CornerRadius="4" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </StackPanel>
                 </Grid>
                 <!-- Row 1: Task counts -->
