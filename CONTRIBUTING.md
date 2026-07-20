@@ -71,7 +71,12 @@ This project uses [VeloPack](https://velopack.io/) for auto-updates. If you are 
 
    The resulting `Setup-x64.msi` and `Setup-arm64.msi` presents a standard MSI UI where the user selects _Per User_ or _Machine-Wide_ installation.
 
-3. Upload `Setup-x64.msi`, `Setup-arm64.msi`, `Portable-x64.zip`, `Portable-arm64.zip` from the Dist folder to a GitHub Release. The app will pick these up automatically for in-app updates.
+3. Upload the installers and the mandatory Velopack metadata to your GitHub Release:
+   * From the `Dist` folder: `Setup-x64.msi`, `Setup-arm64.msi`, `Portable-x64.zip`, `Portable-arm64.zip`.
+   * From the `Releases` subfolders: All `releases.win.json` files and all `.nupkg` files (Full and Delta).
+
+   Without `releases.win.json`, the app has no idea that an update exists. Without the `.nupkg` files, the app cannot actually perform the update. Just uploading the MSI is not enough for the auto updater to work.
+
 
 ---
 

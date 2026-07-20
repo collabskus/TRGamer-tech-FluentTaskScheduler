@@ -29,7 +29,7 @@ namespace FluentTaskScheduler.Services
             }
             catch (Exception ex)
             {
-                LogService.Info($"[VeloPackUpdate] Could not get current version: {ex.Message}");
+                LogService.Error("[VeloPackUpdate] Could not get current version", ex);
                 return null;
             }
         }
@@ -120,7 +120,7 @@ namespace FluentTaskScheduler.Services
             }
             catch (Exception ex)
             {
-                LogService.Info($"[VeloPackUpdate] Update process failed: {ex.Message}");
+                LogService.Error("[VeloPackUpdate] Update process failed", ex);
                 string message = ex.Message;
                 if (message.Contains("access to the path", StringComparison.OrdinalIgnoreCase))
                 {

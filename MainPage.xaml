@@ -678,8 +678,8 @@
                 </ComboBox>
                 <StackPanel Spacing="8" Margin="0,8,0,0">
                      <StackPanel x:Name="PanelStartTime" Spacing="16">
-                         <DatePicker x:Name="EditTaskStartDate" HorizontalAlignment="Left"/>
-                         <TimePicker x:Name="EditTaskStartTime" HorizontalAlignment="Left" ClockIdentifier="24HourClock"/>
+                         <DatePicker x:Name="EditTaskStartDate" HorizontalAlignment="Left" SelectedDateChanged="EditTaskStartDate_SelectedDateChanged"/>
+                         <TimePicker x:Name="EditTaskStartTime" HorizontalAlignment="Left" ClockIdentifier="24HourClock" TimeChanged="EditTaskStartTime_TimeChanged"/>
                      </StackPanel>
                     
                     <StackPanel Orientation="Horizontal" Spacing="8">

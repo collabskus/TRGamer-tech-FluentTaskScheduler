@@ -1320,6 +1320,19 @@ namespace FluentTaskScheduler
             }
         }
 
+        private void EditTaskStartDate_SelectedDateChanged(object sender, DatePickerSelectedValueChangedEventArgs e) => UpdateTriggerScheduleInfo();
+        private void EditTaskStartTime_TimeChanged(object sender, TimePickerValueChangedEventArgs e) => UpdateTriggerScheduleInfo();
+
+        private void UpdateTriggerScheduleInfo()
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+            {
+                var combined = EditTaskStartDate.Date.Date + EditTaskStartTime.Time;
+                tr.ScheduleInfo = combined.ToString("g");
+            }
+        }
+
         private void EditTaskSessionStateType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isPopulatingDetails) return;
@@ -1328,7 +1341,7 @@ namespace FluentTaskScheduler
                 if (item.Tag != null) tr.SessionStateChangeType = item.Tag.ToString()!;
             }
         }
-        
+
         private void EditTaskTriggerType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isPopulatingDetails) return;
