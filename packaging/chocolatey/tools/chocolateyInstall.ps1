@@ -13,11 +13,11 @@ $isArm64 = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') -or ($env:PROCESSOR_ARCHITE
 
 # Use correct 'V' prefix for GitHub release tag
 $pkgUrl = "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V$version/Setup-x64.msi"
-$pkgHash = 'C21DBD04F6C50517370DE0DC6F604A921A932DE9CD75DA7FEC717E4ADF4F7A6C'
+$pkgHash = '0498DC77AA4C19EFF1249C0CB1EB4107D7B0614D4D23C6583103915835F09FCE'
 
 if ($isArm64) {
     $pkgUrl = "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V$version/Setup-arm64.msi"
-    $pkgHash = '4CB3BD07E20FC8990A31F7D89BCEBBD8EE2ED8B77BCEE52C6345DFD3FAFF28D6'
+    $pkgHash = '7E287325795C82851EA8935F392486C085A6B36E5302F4252E3BE7820CAC682E'
 }
 
 $packageArgs = @{

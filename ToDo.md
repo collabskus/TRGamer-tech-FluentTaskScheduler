@@ -1,9 +1,9 @@
 # To Do:
 
 1. ***More TBD***
-2. Translate the v1.9.0 additions (Snooze, Pipelines, Dashboard analytics, Library/Templates, onboarding slides) into `de-DE`, `ja-JP`, `zh-CN` — they currently fall back to English.
+2. ~~Translate the v1.9.0 additions (Snooze, Pipelines, Dashboard analytics, Library/Templates, onboarding slides) into `de-DE`, `ja-JP`, `zh-CN`.~~ (Done: all 217 v1.9.0 keys translated into all three locales; every `.resw` now has identical key counts.)
 3. Submit the updated Scoop / Chocolatey / WinGet manifests once the v1.9.0 GitHub Release is published.
-4. **Fix the in-app auto-updater's arch collision before ever uploading `releases.win.json`/`.nupkg` to a GitHub Release.** Found while preparing this release: `vpk pack` defaults to channel `win` for every architecture, so the x64 and arm64 builds both produce a file literally named `releases.win.json`. Uploading both to the same GitHub Release would overwrite one with the other, and `VeloPackUpdateService.cs` opens `new GithubSource(GitHubRepoUrl, null, false)` with no channel specified either, so it can't currently tell x64 and arm64 updates apart. This is almost certainly why past releases (checked V1.8.1 via the GitHub API) only ever uploaded the MSI/ZIP installers and never the update metadata — auto-update has likely been silently non-functional for GitHub-sourced installs this whole time. To fix: pack each arch with `-c win-x64` / `-c win-arm64`, and pass the matching channel into `GithubSource(...)` at runtime based on `RuntimeInformation.ProcessArchitecture`. Needs real testing on both architectures before shipping — not done as a drive-by fix here.
+4. ~~**Fix the in-app auto-updater's arch collision before ever uploading `releases.win.json`/`.nupkg` to a GitHub Release.**~~ (Done: Fixed in V1.9.0. Added -c win-x64/win-arm64 at pack time, and pass ExplicitChannel to UpdateOptions).
 
 # Changelog:
 

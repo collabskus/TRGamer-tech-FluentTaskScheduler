@@ -10,11 +10,11 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.9.0/Portable-x64.zip",
-            "hash": "861999C5E475B98018DDC39CF16673FFA5CBA746DDA2ED6E60426588A9B9ECBA"
+            "hash": "0B8DBAC7F16BABD0960FFD3E430B11F9A7AF0FE28E5591B289487602625074AE"
         },
         "arm64": {
             "url": "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.9.0/Portable-arm64.zip",
-            "hash": "2884EE649B12E01EE26BAFC6C60D8C8A00C91B997CC0B3502684E439B0839CEC"
+            "hash": "5E7BE2FCE8B6857845A55BB2B1A11872879F072656260E4815B52C84AFB20551"
         }
     },
     "bin": "FluentTaskScheduler.exe",
