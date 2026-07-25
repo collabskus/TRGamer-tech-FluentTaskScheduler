@@ -311,8 +311,12 @@ namespace FluentTaskScheduler.ViewModels
                     var allHistoryForChart = new List<TaskHistoryEntry>();
                     var failedInfos = new List<FailedTaskInfo>();
 
-                    foreach (var task in allTasks.Where(t => t.LastRunTime.HasValue)
-                                                  .OrderByDescending(t => t.LastRunTime).Take(20))
+                    // Only pull history for tasks that actually ran within the 7-day window the chart
+                    // below covers - a fixed Take(N) would silently drop real activity from tasks that
+                    // ran recently but aren't among the very latest by LastRunTime.
+                    var chartWindowStart = DateTime.Today.AddDays(-6);
+                    foreach (var task in allTasks.Where(t => t.LastRunTime.HasValue && t.LastRunTime.Value.Date >= chartWindowStart)
+                                                  .OrderByDescending(t => t.LastRunTime))
                     {
                         var taskHistory = _taskService.GetTaskHistory(task.Path);
                         if (taskHistory.Any())
@@ -348,8 +352,7 @@ namespace FluentTaskScheduler.ViewModels
                             {
                                 Label = day == today ? LocalizationService.GetString("Dashboard.Today", "Today") : day.ToString("ddd"),
                                 Successes = dayEntries.Count(e => e.Result == "Task Completed"),
-                                Failures  = dayEntries.Count(e => e.Result != "Task Completed"
-                                                                && !string.IsNullOrEmpty(e.Result)),
+                                Failures  = dayEntries.Count(e => e.Result == "Task Failed"),
                                 LabelOpacity = day == today ? 1.0 : 0.6
                             };
                         }).ToList();

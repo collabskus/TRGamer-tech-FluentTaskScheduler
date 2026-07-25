@@ -852,15 +852,33 @@ namespace FluentTaskScheduler
         private void UpdateHistoryList()
         {
             if (InlineHistoryListView == null) return;
-            if (_historyStatusFilter == "Total") InlineHistoryListView.ItemsSource = _fullHistory;
-            else if (_historyStatusFilter == "Success") InlineHistoryListView.ItemsSource = _fullHistory.Where(h => h.Result == "Task Completed");
-            else if (_historyStatusFilter == "Failed") InlineHistoryListView.ItemsSource = _fullHistory.Where(h => h.Result != "Task Completed" && h.Result != "Task Started" && h.Result != "Task Registered");
+
+            IEnumerable<TaskHistoryEntry> filtered = _fullHistory;
 
             // Date filtering (Combo)
-            if (HistoryFilterCombo != null && HistoryFilterCombo.SelectedItem is ComboBoxItem item)
+            if (HistoryFilterCombo != null && HistoryFilterCombo.SelectedItem is ComboBoxItem dateItem)
             {
-                 // To implement if needed, currently reusing logic
+                string dateTag = dateItem.Tag?.ToString() ?? "All";
+                if (dateTag != "All")
+                {
+                    filtered = filtered.Where(h =>
+                    {
+                        if (!DateTime.TryParse(h.Time, out var entryTime)) return true;
+                        return dateTag switch
+                        {
+                            "Today" => entryTime.Date == DateTime.Today,
+                            "Yesterday" => entryTime.Date == DateTime.Today.AddDays(-1),
+                            "Week" => entryTime.Date >= DateTime.Today.AddDays(-7),
+                            _ => true
+                        };
+                    });
+                }
             }
+
+            if (_historyStatusFilter == "Success") filtered = filtered.Where(h => h.Result == "Task Completed");
+            else if (_historyStatusFilter == "Failed") filtered = filtered.Where(h => h.Result != "Task Completed" && h.Result != "Task Started" && h.Result != "Task Registered");
+
+            InlineHistoryListView.ItemsSource = filtered.ToList();
         }
         
         private void UpdateHistoryStats()
@@ -1158,6 +1176,11 @@ namespace FluentTaskScheduler
             // This is hard to "Refactor Cleanly" without binding everything.
             // For now, retaining basic load logic manually.
             EditTaskOnlyIfIdle.IsChecked = ViewModel.SelectedTask.OnlyIfIdle;
+            EditTaskIdleDurationSetting.Text = ViewModel.SelectedTask.IdleDuration;
+            EditTaskStopOnIdleEnd.IsChecked = ViewModel.SelectedTask.StopOnIdleEnd;
+            EditTaskOnlyIfAC.IsChecked = ViewModel.SelectedTask.OnlyIfAC;
+            EditTaskOnlyIfNetwork.IsChecked = ViewModel.SelectedTask.OnlyIfNetwork;
+            EditTaskWakeToRun.IsChecked = ViewModel.SelectedTask.WakeToRun;
             EditTaskIsHidden.IsChecked = ViewModel.SelectedTask.IsHidden;
             EditTaskRunWithHighestPrivileges.IsChecked = ViewModel.SelectedTask.RunWithHighestPrivileges;
             
@@ -1184,6 +1207,26 @@ namespace FluentTaskScheduler
             EditTaskRestartOnFailure.IsChecked = ViewModel.SelectedTask.RestartOnFailure;
             EditTaskRestartInterval.Text = ViewModel.SelectedTask.RestartInterval;
             if (EditTaskRestartCount != null) EditTaskRestartCount.Value = ViewModel.SelectedTask.RestartCount;
+
+            // Expiration
+            bool hasExpiration = ViewModel.SelectedTask.ExpirationDate.HasValue;
+            EditTaskExpires.IsChecked = hasExpiration;
+            EditTaskExpirationDate.Date = hasExpiration ? ViewModel.SelectedTask.ExpirationDate!.Value.Date : DateTime.Today;
+            EditTaskExpirationTime.Time = hasExpiration ? ViewModel.SelectedTask.ExpirationDate!.Value.TimeOfDay : DateTime.Now.TimeOfDay;
+            EditTaskExpirationDate.IsEnabled = hasExpiration;
+            EditTaskExpirationTime.IsEnabled = hasExpiration;
+
+            // Stop task if runs longer than
+            bool hasStopAfter = !string.IsNullOrWhiteSpace(ViewModel.SelectedTask.StopIfRunsLongerThan);
+            EditTaskStopAfter.IsChecked = hasStopAfter;
+            EditTaskStopAfterVal.IsEnabled = hasStopAfter;
+            if (hasStopAfter)
+            {
+                bool matchedStopAfter = false;
+                foreach (var item in EditTaskStopAfterVal.Items.Cast<Microsoft.UI.Xaml.Controls.ComboBoxItem>())
+                    if (item.Tag?.ToString() == ViewModel.SelectedTask.StopIfRunsLongerThan) { EditTaskStopAfterVal.SelectedItem = item; matchedStopAfter = true; break; }
+                if (!matchedStopAfter) EditTaskStopAfterVal.Text = ViewModel.SelectedTask.StopIfRunsLongerThan;
+            }
             // All settings mapped
             
             PopulateNetworkList();
@@ -1228,6 +1271,8 @@ namespace FluentTaskScheduler
                 TriggersList = new ObservableCollection<TaskTriggerModel>(_tempTriggers),
                 // Map Settings
                 OnlyIfIdle = EditTaskOnlyIfIdle.IsChecked == true,
+                IdleDuration = EditTaskIdleDurationSetting.Text ?? "",
+                StopOnIdleEnd = EditTaskStopOnIdleEnd.IsChecked == true,
                 OnlyIfAC = EditTaskOnlyIfAC.IsChecked == true,
                 OnlyIfNetwork = EditTaskOnlyIfNetwork.IsChecked == true,
                 NetworkId = (EditTaskNetworkSelection.SelectedItem as Microsoft.UI.Xaml.Controls.ComboBoxItem)?.Tag?.ToString() ?? "",
@@ -1244,8 +1289,15 @@ namespace FluentTaskScheduler
                 AllowHardTerminate = EditTaskAllowHardTerminate.IsChecked == true,
                 RestartOnFailure = EditTaskRestartOnFailure.IsChecked == true,
                 RestartInterval = EditTaskRestartInterval.Text ?? "",
-                RestartCount = EditTaskRestartCount != null ? (int)double.Round(EditTaskRestartCount.Value) : 3
+                RestartCount = EditTaskRestartCount != null ? (int)double.Round(EditTaskRestartCount.Value) : 3,
+                StopIfRunsLongerThan = EditTaskStopAfter.IsChecked == true
+                    ? ((EditTaskStopAfterVal.SelectedItem as Microsoft.UI.Xaml.Controls.ComboBoxItem)?.Tag?.ToString() ?? "PT72H")
+                    : ""
             };
+
+            model.ExpirationDate = EditTaskExpires.IsChecked == true
+                ? EditTaskExpirationDate.Date.Date + EditTaskExpirationTime.Time
+                : (DateTime?)null;
             
             // Handle folder
             string folder = "\\";
@@ -1315,6 +1367,52 @@ namespace FluentTaskScheduler
                 foreach (var item in EditTaskRepetitionDuration.Items.Cast<ComboBoxItem>())
                     if (item.Tag?.ToString() == (tr.RepetitionDuration ?? "")) { EditTaskRepetitionDuration.SelectedItem = item; break; }
 
+                // Daily recurrence mapping
+                DailyInterval.Text = tr.DailyInterval.ToString();
+
+                // Weekly recurrence mapping
+                WeeklyInterval.Text = tr.WeeklyInterval.ToString();
+                WeeklyMon.IsChecked = tr.WeeklyDays.Contains("Monday");
+                WeeklyTue.IsChecked = tr.WeeklyDays.Contains("Tuesday");
+                WeeklyWed.IsChecked = tr.WeeklyDays.Contains("Wednesday");
+                WeeklyThu.IsChecked = tr.WeeklyDays.Contains("Thursday");
+                WeeklyFri.IsChecked = tr.WeeklyDays.Contains("Friday");
+                WeeklySat.IsChecked = tr.WeeklyDays.Contains("Saturday");
+                WeeklySun.IsChecked = tr.WeeklyDays.Contains("Sunday");
+
+                // Monthly recurrence mapping
+                MonthlyDaysInput.Text = string.Join(", ", tr.MonthlyDays.Select(d => d == 32 ? "Last" : d.ToString()));
+                MonthJan.IsChecked = tr.MonthlyMonths.Contains("January");
+                MonthFeb.IsChecked = tr.MonthlyMonths.Contains("February");
+                MonthMar.IsChecked = tr.MonthlyMonths.Contains("March");
+                MonthApr.IsChecked = tr.MonthlyMonths.Contains("April");
+                MonthMay.IsChecked = tr.MonthlyMonths.Contains("May");
+                MonthJun.IsChecked = tr.MonthlyMonths.Contains("June");
+                MonthJul.IsChecked = tr.MonthlyMonths.Contains("July");
+                MonthAug.IsChecked = tr.MonthlyMonths.Contains("August");
+                MonthSep.IsChecked = tr.MonthlyMonths.Contains("September");
+                MonthOct.IsChecked = tr.MonthlyMonths.Contains("October");
+                MonthNov.IsChecked = tr.MonthlyMonths.Contains("November");
+                MonthDec.IsChecked = tr.MonthlyMonths.Contains("December");
+                MonthlyRadioDays.IsChecked = !tr.MonthlyIsDayOfWeek;
+                MonthlyRadioOn.IsChecked = tr.MonthlyIsDayOfWeek;
+                MonthlyWeekCombo.SelectedIndex = tr.MonthlyWeek switch
+                {
+                    "First" => 0, "Second" => 1, "Third" => 2, "Fourth" => 3, "Last" => 4, _ => 0
+                };
+                MonthlyDayCombo.SelectedIndex = tr.MonthlyDayOfWeek switch
+                {
+                    "Monday" => 0, "Tuesday" => 1, "Wednesday" => 2, "Thursday" => 3, "Friday" => 4, "Saturday" => 5, "Sunday" => 6, _ => 0
+                };
+
+                // Idle trigger
+                EditTaskIdleDuration.Text = tr.IdleDuration;
+
+                // Event trigger
+                EditTaskEventLog.Text = tr.EventLog;
+                EditTaskEventSource.Text = tr.EventSource;
+                EditTaskEventId.Text = tr.EventId?.ToString() ?? "";
+
                 UpdateTriggerPanelVisibility();
                 _isPopulatingDetails = false;
             }
@@ -1330,6 +1428,113 @@ namespace FluentTaskScheduler
             {
                 var combined = EditTaskStartDate.Date.Date + EditTaskStartTime.Time;
                 tr.ScheduleInfo = combined.ToString("g");
+            }
+        }
+
+        private void DailyInterval_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr && short.TryParse(DailyInterval.Text, out short interval) && interval > 0)
+                tr.DailyInterval = interval;
+        }
+
+        private void WeeklyInterval_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr && short.TryParse(WeeklyInterval.Text, out short interval) && interval > 0)
+                tr.WeeklyInterval = interval;
+        }
+
+        private void WeeklyDay_CheckChanged(object sender, RoutedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+            {
+                var days = new List<string>();
+                if (WeeklyMon.IsChecked == true) days.Add("Monday");
+                if (WeeklyTue.IsChecked == true) days.Add("Tuesday");
+                if (WeeklyWed.IsChecked == true) days.Add("Wednesday");
+                if (WeeklyThu.IsChecked == true) days.Add("Thursday");
+                if (WeeklyFri.IsChecked == true) days.Add("Friday");
+                if (WeeklySat.IsChecked == true) days.Add("Saturday");
+                if (WeeklySun.IsChecked == true) days.Add("Sunday");
+                tr.WeeklyDays = days;
+            }
+        }
+
+        private void MonthlyDaysInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+            {
+                var days = new List<int>();
+                foreach (var part in MonthlyDaysInput.Text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (part.Equals("Last", StringComparison.OrdinalIgnoreCase)) days.Add(32);
+                    else if (int.TryParse(part, out int d) && d >= 1 && d <= 31) days.Add(d);
+                }
+                tr.MonthlyDays = days;
+            }
+        }
+
+        private void MonthlyMonth_CheckChanged(object sender, RoutedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+            {
+                var months = new List<string>();
+                if (MonthJan.IsChecked == true) months.Add("January");
+                if (MonthFeb.IsChecked == true) months.Add("February");
+                if (MonthMar.IsChecked == true) months.Add("March");
+                if (MonthApr.IsChecked == true) months.Add("April");
+                if (MonthMay.IsChecked == true) months.Add("May");
+                if (MonthJun.IsChecked == true) months.Add("June");
+                if (MonthJul.IsChecked == true) months.Add("July");
+                if (MonthAug.IsChecked == true) months.Add("August");
+                if (MonthSep.IsChecked == true) months.Add("September");
+                if (MonthOct.IsChecked == true) months.Add("October");
+                if (MonthNov.IsChecked == true) months.Add("November");
+                if (MonthDec.IsChecked == true) months.Add("December");
+                tr.MonthlyMonths = months;
+            }
+        }
+
+        private void MonthlyMode_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+                tr.MonthlyIsDayOfWeek = MonthlyRadioOn.IsChecked == true;
+        }
+
+        private void MonthlyWeekOrDay_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+            {
+                string[] weeks = { "First", "Second", "Third", "Fourth", "Last" };
+                string[] days = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+                if (MonthlyWeekCombo.SelectedIndex >= 0 && MonthlyWeekCombo.SelectedIndex < weeks.Length)
+                    tr.MonthlyWeek = weeks[MonthlyWeekCombo.SelectedIndex];
+                if (MonthlyDayCombo.SelectedIndex >= 0 && MonthlyDayCombo.SelectedIndex < days.Length)
+                    tr.MonthlyDayOfWeek = days[MonthlyDayCombo.SelectedIndex];
+            }
+        }
+
+        private void EditTaskIdleDuration_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+                tr.IdleDuration = EditTaskIdleDuration.Text ?? "";
+        }
+
+        private void EditTaskEventTrigger_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+            {
+                tr.EventLog = EditTaskEventLog.Text ?? "";
+                tr.EventSource = EditTaskEventSource.Text ?? "";
+                tr.EventId = int.TryParse(EditTaskEventId.Text, out int id) ? id : (int?)null;
             }
         }
 

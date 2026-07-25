@@ -90,6 +90,7 @@ namespace FluentTaskScheduler
                 File.WriteAllText(fullPath, code);
 
                 var viewModel = new ScriptLibraryViewModel();
+                await viewModel.LoadScriptsAsync();
                 viewModel.AddUserTemplate(new ScriptTemplateModel
                 {
                     Name = nameBox.Text,

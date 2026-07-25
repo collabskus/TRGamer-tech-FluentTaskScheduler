@@ -461,20 +461,34 @@ namespace FluentTaskScheduler.Services
             td.Settings.WakeToRun = model.WakeToRun;
             td.Settings.StartWhenAvailable = model.RunIfMissed;
 
-            if (model.RestartOnFailure && !string.IsNullOrWhiteSpace(model.RestartInterval))
+            if (model.RestartOnFailure)
             {
+                TimeSpan restartInterval;
                 try
                 {
-                    td.Settings.RestartInterval = System.Xml.XmlConvert.ToTimeSpan(model.RestartInterval);
-                    td.Settings.RestartCount = model.RestartCount;
+                    restartInterval = string.IsNullOrWhiteSpace(model.RestartInterval)
+                        ? TimeSpan.FromMinutes(1)
+                        : System.Xml.XmlConvert.ToTimeSpan(model.RestartInterval);
                 }
-                catch { }
+                catch
+                {
+                    LogService.Warn($"Invalid RestartInterval '{model.RestartInterval}' for task '{model.Name}'; defaulting to 1 minute instead of dropping the restart-on-failure policy.");
+                    restartInterval = TimeSpan.FromMinutes(1);
+                }
+                td.Settings.RestartInterval = restartInterval;
+                td.Settings.RestartCount = model.RestartCount;
             }
 
             if (!string.IsNullOrWhiteSpace(model.StopIfRunsLongerThan))
             {
                 try { td.Settings.ExecutionTimeLimit = System.Xml.XmlConvert.ToTimeSpan(model.StopIfRunsLongerThan); }
                 catch { td.Settings.ExecutionTimeLimit = TimeSpan.FromHours(72); }
+            }
+            else
+            {
+                // Explicitly unlimited when the user unchecked "Stop task if runs longer than" -
+                // otherwise the task definition's own built-in default (72h) would silently apply.
+                td.Settings.ExecutionTimeLimit = TimeSpan.Zero;
             }
 
             td.Settings.MultipleInstances = model.MultipleInstancesPolicy switch
@@ -1223,6 +1237,18 @@ namespace FluentTaskScheduler.Services
 
         private void CopyFolderContents(TaskService ts, TaskFolder sourceFolder, TaskFolder targetFolder)
         {
+            var failedTasks = new List<string>();
+            CopyFolderContents(ts, sourceFolder, targetFolder, failedTasks);
+            if (failedTasks.Count > 0)
+            {
+                throw new Exception(
+                    $"Failed to copy {failedTasks.Count} task(s): {string.Join(", ", failedTasks)}. " +
+                    "The source folder was left untouched so no tasks were lost.");
+            }
+        }
+
+        private void CopyFolderContents(TaskService ts, TaskFolder sourceFolder, TaskFolder targetFolder, List<string> failedTasks)
+        {
             foreach (var task in sourceFolder.Tasks)
             {
                 try
@@ -1233,13 +1259,22 @@ namespace FluentTaskScheduler.Services
                 {
                     if (IsAccessDenied(ex))
                     {
-                        var td = ts.NewTask();
-                        td.XmlText = task.Xml;
-                        targetFolder.RegisterTaskDefinition(task.Name, td, TaskCreation.CreateOrUpdate, null, null, TaskLogonType.InteractiveToken);
+                        try
+                        {
+                            var td = ts.NewTask();
+                            td.XmlText = task.Xml;
+                            targetFolder.RegisterTaskDefinition(task.Name, td, TaskCreation.CreateOrUpdate, null, null, TaskLogonType.InteractiveToken);
+                        }
+                        catch (Exception fallbackEx)
+                        {
+                            LogService.Error($"Failed to copy task '{task.Name}': {fallbackEx.Message}");
+                            failedTasks.Add(task.Name);
+                        }
                     }
                     else
                     {
                         LogService.Error($"Failed to copy task '{task.Name}': {ex.Message}");
+                        failedTasks.Add(task.Name);
                     }
                 }
             }
@@ -1247,7 +1282,7 @@ namespace FluentTaskScheduler.Services
             foreach (var sub in sourceFolder.SubFolders)
             {
                 var newSub = targetFolder.CreateFolder(sub.Name);
-                CopyFolderContents(ts, sub, newSub);
+                CopyFolderContents(ts, sub, newSub, failedTasks);
             }
         }
     }

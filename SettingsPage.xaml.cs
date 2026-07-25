@@ -451,6 +451,7 @@ namespace FluentTaskScheduler
                     (Application.Current as App)?.ApplyTheme(SettingsService.Theme);
                     TrayIconService.UpdateVisibility();
                     StartupService.UpdateFromSettings();
+                    LocalizationService.ChangeLanguage(SettingsService.Language);
 
                     await ShowDialog(
                         LocalizationService.GetString("Settings.Import.Success.Title", "Import Successful"),

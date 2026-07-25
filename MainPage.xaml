@@ -714,7 +714,7 @@
                 <StackPanel x:Name="PanelDaily" Visibility="Collapsed" Spacing="8" Margin="0,4,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <CheckBox x:Name="EditTaskDailyRecurrence" Content="Recur every" IsChecked="True" Checked="EditTaskDailyRecurrence_Checked" Unchecked="EditTaskDailyRecurrence_Checked" VerticalAlignment="Center"/>
-                        <TextBox x:Name="DailyInterval" Width="80" Text="1" VerticalAlignment="Center"/>
+                        <TextBox x:Name="DailyInterval" Width="80" Text="1" VerticalAlignment="Center" TextChanged="DailyInterval_TextChanged"/>
                         <TextBlock x:Name="DlgDaysSuffix" Text="day(s)" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
@@ -723,19 +723,19 @@
                 <StackPanel x:Name="PanelWeekly" Visibility="Collapsed" Spacing="8" Margin="0,4,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock x:Name="DlgWeeklyRecur" Text="Recur every" VerticalAlignment="Center"/>
-                        <TextBox x:Name="WeeklyInterval" Text="1" InputScope="Number" Width="60"/>
+                        <TextBox x:Name="WeeklyInterval" Text="1" InputScope="Number" Width="60" TextChanged="WeeklyInterval_TextChanged"/>
                         <TextBlock x:Name="DlgWeeksOn" Text="weeks on:" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <CheckBox x:Name="WeeklyMon" Content="Mon"/>
-                        <CheckBox x:Name="WeeklyTue" Content="Tue"/>
-                        <CheckBox x:Name="WeeklyWed" Content="Wed"/>
-                        <CheckBox x:Name="WeeklyThu" Content="Thu"/>
+                        <CheckBox x:Name="WeeklyMon" Content="Mon" Checked="WeeklyDay_CheckChanged" Unchecked="WeeklyDay_CheckChanged"/>
+                        <CheckBox x:Name="WeeklyTue" Content="Tue" Checked="WeeklyDay_CheckChanged" Unchecked="WeeklyDay_CheckChanged"/>
+                        <CheckBox x:Name="WeeklyWed" Content="Wed" Checked="WeeklyDay_CheckChanged" Unchecked="WeeklyDay_CheckChanged"/>
+                        <CheckBox x:Name="WeeklyThu" Content="Thu" Checked="WeeklyDay_CheckChanged" Unchecked="WeeklyDay_CheckChanged"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                         <CheckBox x:Name="WeeklyFri" Content="Fri"/>
-                        <CheckBox x:Name="WeeklySat" Content="Sat"/>
-                        <CheckBox x:Name="WeeklySun" Content="Sun"/>
+                         <CheckBox x:Name="WeeklyFri" Content="Fri" Checked="WeeklyDay_CheckChanged" Unchecked="WeeklyDay_CheckChanged"/>
+                        <CheckBox x:Name="WeeklySat" Content="Sat" Checked="WeeklyDay_CheckChanged" Unchecked="WeeklyDay_CheckChanged"/>
+                        <CheckBox x:Name="WeeklySun" Content="Sun" Checked="WeeklyDay_CheckChanged" Unchecked="WeeklyDay_CheckChanged"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -756,37 +756,37 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         
-                        <CheckBox x:Name="MonthJan" Content="Jan" Grid.Row="0" Grid.Column="0"/>
-                        <CheckBox x:Name="MonthFeb" Content="Feb" Grid.Row="0" Grid.Column="1"/>
-                        <CheckBox x:Name="MonthMar" Content="Mar" Grid.Row="0" Grid.Column="2"/>
-                        <CheckBox x:Name="MonthApr" Content="Apr" Grid.Row="0" Grid.Column="3"/>
-                        <CheckBox x:Name="MonthMay" Content="May" Grid.Row="0" Grid.Column="4"/>
-                        <CheckBox x:Name="MonthJun" Content="Jun" Grid.Row="0" Grid.Column="5"/>
-                        
-                        <CheckBox x:Name="MonthJul" Content="Jul" Grid.Row="1" Grid.Column="0"/>
-                        <CheckBox x:Name="MonthAug" Content="Aug" Grid.Row="1" Grid.Column="1"/>
-                        <CheckBox x:Name="MonthSep" Content="Sep" Grid.Row="1" Grid.Column="2"/>
-                        <CheckBox x:Name="MonthOct" Content="Oct" Grid.Row="1" Grid.Column="3"/>
-                        <CheckBox x:Name="MonthNov" Content="Nov" Grid.Row="1" Grid.Column="4"/>
-                        <CheckBox x:Name="MonthDec" Content="Dec" Grid.Row="1" Grid.Column="5"/>
+                        <CheckBox x:Name="MonthJan" Content="Jan" Grid.Row="0" Grid.Column="0" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthFeb" Content="Feb" Grid.Row="0" Grid.Column="1" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthMar" Content="Mar" Grid.Row="0" Grid.Column="2" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthApr" Content="Apr" Grid.Row="0" Grid.Column="3" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthMay" Content="May" Grid.Row="0" Grid.Column="4" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthJun" Content="Jun" Grid.Row="0" Grid.Column="5" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+
+                        <CheckBox x:Name="MonthJul" Content="Jul" Grid.Row="1" Grid.Column="0" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthAug" Content="Aug" Grid.Row="1" Grid.Column="1" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthSep" Content="Sep" Grid.Row="1" Grid.Column="2" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthOct" Content="Oct" Grid.Row="1" Grid.Column="3" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthNov" Content="Nov" Grid.Row="1" Grid.Column="4" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
+                        <CheckBox x:Name="MonthDec" Content="Dec" Grid.Row="1" Grid.Column="5" Checked="MonthlyMonth_CheckChanged" Unchecked="MonthlyMonth_CheckChanged"/>
                     </Grid>
 
-                    <RadioButton x:Name="MonthlyRadioDays" Content="Days" IsChecked="True" GroupName="MonthlyMode" Tag="loc"/>
+                    <RadioButton x:Name="MonthlyRadioDays" Content="Days" IsChecked="True" GroupName="MonthlyMode" Tag="loc" Checked="MonthlyMode_Changed"/>
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="24,0,0,0">
-                         <TextBox x:Name="MonthlyDaysInput" PlaceholderText="e.g. 1, 15, Last" Width="200" Tag="ph"/>
+                         <TextBox x:Name="MonthlyDaysInput" PlaceholderText="e.g. 1, 15, Last" Width="200" Tag="ph" TextChanged="MonthlyDaysInput_TextChanged"/>
                          <TextBlock x:Name="DlgMonthlyDaysHint" Text="(comma separated, use 'Last' for last day)" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
                     </StackPanel>
 
-                    <RadioButton x:Name="MonthlyRadioOn" Content="On" GroupName="MonthlyMode" Tag="loc"/>
+                    <RadioButton x:Name="MonthlyRadioOn" Content="On" GroupName="MonthlyMode" Tag="loc" Checked="MonthlyMode_Changed"/>
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="24,0,0,0">
-                        <ComboBox x:Name="MonthlyWeekCombo" SelectedIndex="0">
+                        <ComboBox x:Name="MonthlyWeekCombo" SelectedIndex="0" SelectionChanged="MonthlyWeekOrDay_SelectionChanged">
                             <ComboBoxItem x:Name="DlgWeekFirst" Content="First"/>
                             <ComboBoxItem x:Name="DlgWeekSecond" Content="Second"/>
                             <ComboBoxItem x:Name="DlgWeekThird" Content="Third"/>
                             <ComboBoxItem x:Name="DlgWeekFourth" Content="Fourth"/>
                             <ComboBoxItem x:Name="DlgWeekLast" Content="Last"/>
                         </ComboBox>
-                        <ComboBox x:Name="MonthlyDayCombo" SelectedIndex="0">
+                        <ComboBox x:Name="MonthlyDayCombo" SelectedIndex="0" SelectionChanged="MonthlyWeekOrDay_SelectionChanged">
                             <ComboBoxItem x:Name="DlgDayMon" Content="Monday"/>
                             <ComboBoxItem x:Name="DlgDayTue" Content="Tuesday"/>
                             <ComboBoxItem x:Name="DlgDayWed" Content="Wednesday"/>
@@ -800,16 +800,16 @@
 
                 <!-- Event Log Trigger -->
                 <StackPanel x:Name="PanelEvent" Visibility="Collapsed" Spacing="8" Margin="0,4,0,0">
-                    <TextBox x:Name="EditTaskEventLog" Header="Log" PlaceholderText="Application, System, Security, etc." Text="Application" Tag="ph"/>
-                    <TextBox x:Name="EditTaskEventSource" Header="Source" PlaceholderText="e.g., VSS, Outlook (Optional)" Tag="ph"/>
-                    <TextBox x:Name="EditTaskEventId" Header="Event ID" PlaceholderText="e.g., 1000 (Optional)" InputScope="Number" Tag="ph"/>
+                    <TextBox x:Name="EditTaskEventLog" Header="Log" PlaceholderText="Application, System, Security, etc." Text="Application" Tag="ph" TextChanged="EditTaskEventTrigger_TextChanged"/>
+                    <TextBox x:Name="EditTaskEventSource" Header="Source" PlaceholderText="e.g., VSS, Outlook (Optional)" Tag="ph" TextChanged="EditTaskEventTrigger_TextChanged"/>
+                    <TextBox x:Name="EditTaskEventId" Header="Event ID" PlaceholderText="e.g., 1000 (Optional)" InputScope="Number" Tag="ph" TextChanged="EditTaskEventTrigger_TextChanged"/>
                 </StackPanel>
 
                 <!-- Idle Trigger -->
                 <StackPanel x:Name="PanelIdle" Visibility="Collapsed" Spacing="8" Margin="0,4,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock x:Name="DlgIdleWait" Text="Wait for the computer to be idle for:" VerticalAlignment="Center"/>
-                        <TextBox x:Name="EditTaskIdleDuration" PlaceholderText="e.g., 10m" Width="100" Text="PT10M" Tag="ph"/>
+                        <TextBox x:Name="EditTaskIdleDuration" PlaceholderText="e.g., 10m" Width="100" Text="PT10M" Tag="ph" TextChanged="EditTaskIdleDuration_TextChanged"/>
                         <TextBlock x:Name="DlgIdleHint" Text="(e.g. 5m, 10m, 30m)" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
                     </StackPanel>
                 </StackPanel>
