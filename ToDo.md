@@ -1,10 +1,71 @@
 # To Do:
 
 1. ***More TBD***
+2. Translate the v1.9.0 additions (Snooze, Pipelines, Dashboard analytics, Library/Templates, onboarding slides) into `de-DE`, `ja-JP`, `zh-CN` — they currently fall back to English.
+3. Submit the updated Scoop / Chocolatey / WinGet manifests once the v1.9.0 GitHub Release is published.
+4. **Fix the in-app auto-updater's arch collision before ever uploading `releases.win.json`/`.nupkg` to a GitHub Release.** Found while preparing this release: `vpk pack` defaults to channel `win` for every architecture, so the x64 and arm64 builds both produce a file literally named `releases.win.json`. Uploading both to the same GitHub Release would overwrite one with the other, and `VeloPackUpdateService.cs` opens `new GithubSource(GitHubRepoUrl, null, false)` with no channel specified either, so it can't currently tell x64 and arm64 updates apart. This is almost certainly why past releases (checked V1.8.1 via the GitHub API) only ever uploaded the MSI/ZIP installers and never the update metadata — auto-update has likely been silently non-functional for GitHub-sourced installs this whole time. To fix: pack each arch with `-c win-x64` / `-c win-arm64`, and pass the matching channel into `GithubSource(...)` at runtime based on `RuntimeInformation.ProcessArchitecture`. Needs real testing on both architectures before shipping — not done as a drive-by fix here.
 
 # Changelog:
 
-## [Unreleased] - Full-app correctness audit
+## [Unreleased]
+
+## [V1.9.0] - 2026-07-25
+
+### Task Chaining & Execution Pipelines
+- New "Completion Actions" section in the task editor: chain downstream tasks to run when a task
+  succeeds (exit code 0) or fails (any other code), configured through a dedicated Fluent-styled
+  dialog (`TaskPipelineDialog`).
+- An event-driven `TaskPipelineService` watches the Task Scheduler operational log (no polling) and
+  starts the configured downstream tasks, with cycle detection and a rate limit to prevent runaway
+  chains.
+- Tasks with a configured pipeline now show a "Chained" badge in the task list.
+
+### Global Snooze / Pause
+- "Snooze All Tasks" pauses task execution app-wide for 30m / 1h / 3h / until next reboot / a custom
+  time, with an optional "suspend scheduled triggers" mode that disables tasks at the OS level and
+  restores them automatically when the snooze ends.
+- Snooze status is surfaced via a banner on the task list, a toolbar button next to Sort, and the
+  system tray icon/tooltip.
+
+### Dashboard Analytics
+- Added a 24-hour execution heatmap, a health-score ring, average/longest run duration, 24h/7d
+  throughput, and a filterable live execution log (Success / Failed / Snoozed).
+- Replaced the old per-task history polling with a single bulk read of the Task Scheduler event log,
+  which is both faster and the basis for the new analytics.
+
+### Library: Task Templates + Scripts, merged
+- Merged the separate Script Library and a new Task Template Library into one "Library" page with a
+  segmented switcher and a shared search box.
+- 17 built-in templates across System Maintenance, Developer Tools, and Power & Utility (temp
+  cleanup, restore points, DISM/SFC scan, Git fetch, Docker prune, project backup, idle shutdown,
+  and more). Deploying one opens the task editor pre-filled — nothing is registered until you save.
+
+### Localization fixes
+- Found and fixed the root cause of the app showing OS-language text regardless of the in-app
+  language picker: many dialogs used `x:Uid`, which resolves against the *Windows display language*
+  instead of the selected app language. Removed all remaining `x:Uid` usages and routed everything
+  through `LocalizationService`.
+- `.NET` culture (`CultureInfo`) is now synced to the language picker, so dates, numbers, and
+  framework-generated text follow the app language too, not just `.resw` lookups.
+- Task History entries are now built from the event's own data fields instead of Windows'
+  pre-rendered (OS-language) description, for every event type the app understands.
+- The About page version number is read from the assembly at runtime — it can no longer drift out of
+  sync with the actual build, and all four locales now carry a translated version format string.
+
+### Settings & UI polish
+- Moved Export/Import Settings ("Data") into the Advanced panel.
+- Categories & Tags now list vertically at full width instead of a cramped horizontal wrap.
+- OLED Mode now follows the *effective* theme (including "System Default" resolving to a dark OS)
+  instead of only the stored theme preference, which previously left it greyed out incorrectly.
+- Replaced the sidebar's Running/Enabled/Disabled entries with a single status dropdown (now
+  including "Snoozed") next to the search box in the task list toolbar.
+- CSV history exports now write a UTF-8 BOM so non-ASCII task/user names survive the round trip.
+
+### Onboarding
+- Added two new walkthrough slides covering task chaining/snooze and the dashboard/library, and
+  refreshed several step icons.
+
+## [Full-app correctness audit]
 Ran a systematic audit of every feature in the app after finding the trigger start-time/recurrence
 bugs. Found and fixed 26 issues, from silent data loss to dead code:
 
@@ -39,13 +100,3 @@ bugs. Found and fixed 26 issues, from silent data loss to dead code:
 24. Dashboard language-switch edge case could zero out the dashboard for languages missing from a hardcoded string list (e.g. ja-JP) — replaced with a language-independent flag.
 25. Removed ~150 lines of dead COM interop code (`NlmInterop.cs`).
 26. `SettingsService` load/save failures are now logged instead of silently swallowed.
-
-## [V1.8.1] - 2026-05-05
-
-## [V1.8.1] - 2026-05-05
-1. Fixed Issue #5 ARM 64 portable crashes on startup (removed unsupported PublishSingleFile; portable is now ZIP-only).
-2. Fix Issue #16 Drag & Drop causes Unhandled Exception when run as admin.
-3. Add Language switching with #17 -> Thanks to @Chan-Yuu for the great job!
-4. Add System Maintenance Quick Actions
-5. Add Integrated Script Editor
-6. Let's see what we can do to make it even better.

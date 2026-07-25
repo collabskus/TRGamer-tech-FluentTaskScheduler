@@ -6,18 +6,18 @@ $ErrorActionPreference = 'Stop'
 
 $packageName   = 'fluenttaskscheduler'
 $toolsDir      = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$version       = '1.8.1'
+$version       = '1.9.0'
 
 # Detect architecture
 $isArm64 = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') -or ($env:PROCESSOR_ARCHITEW6432 -eq 'ARM64')
 
 # Use correct 'V' prefix for GitHub release tag
 $pkgUrl = "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V$version/Setup-x64.msi"
-$pkgHash = 'A093637F54D59D5BCE0804FAD524A22F2093934BE683E2A19060007112459D5B'
+$pkgHash = 'C21DBD04F6C50517370DE0DC6F604A921A932DE9CD75DA7FEC717E4ADF4F7A6C'
 
 if ($isArm64) {
     $pkgUrl = "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V$version/Setup-arm64.msi"
-    $pkgHash = 'A3A452A30ACDB5EBCFAFAF0BAAE16569C5F34BC0E8C1E8D7E726B1CC57C2BE86'
+    $pkgHash = '4CB3BD07E20FC8990A31F7D89BCEBBD8EE2ED8B77BCEE52C6345DFD3FAFF28D6'
 }
 
 $packageArgs = @{

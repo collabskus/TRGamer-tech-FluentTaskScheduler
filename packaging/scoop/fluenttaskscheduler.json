@@ -1,5 +1,5 @@
 {
-    "version": "1.8.1",
+    "version": "1.9.0",
     "description": "A modern WinUI 3 wrapper for the Windows Task Scheduler.",
     "homepage": "https://github.com/TRGamer-tech/FluentTaskScheduler",
     "license": {
@@ -9,12 +9,12 @@
     "notes": "Runs on Windows 10 1809 (build 17763) and later.",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.8.1/Portable-x64.zip",
-            "hash": "1A40A7072161F9A52766715E783C814D2001A8C015FB731926A6C4D90E361AC9"
+            "url": "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.9.0/Portable-x64.zip",
+            "hash": "861999C5E475B98018DDC39CF16673FFA5CBA746DDA2ED6E60426588A9B9ECBA"
         },
         "arm64": {
-            "url": "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.8.1/Portable-arm64.zip",
-            "hash": "21AC6B15999C6136EBA255509F51E3003D9E3ECC0FD84495F1F8E2A556BA8C2A"
+            "url": "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.9.0/Portable-arm64.zip",
+            "hash": "2884EE649B12E01EE26BAFC6C60D8C8A00C91B997CC0B3502684E439B0839CEC"
         }
     },
     "bin": "FluentTaskScheduler.exe",

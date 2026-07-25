@@ -77,6 +77,8 @@ This project uses [VeloPack](https://velopack.io/) for auto-updates. If you are 
 
    Without `releases.win.json`, the app has no idea that an update exists. Without the `.nupkg` files, the app cannot actually perform the update. Just uploading the MSI is not enough for the auto updater to work.
 
+   > ⚠️ **Do not upload the `releases.win.json`/`.nupkg` files yet.** The `vpk pack` commands above don't pass `-c`/`--channel`, so both the x64 and arm64 build both default to channel `win` — meaning **both architectures produce a file literally named `releases.win.json`**. Uploading both to the same GitHub Release will silently overwrite one with the other, and `VeloPackUpdateService.cs`'s `GithubSource(...)` call doesn't specify a channel either, so it can't currently distinguish x64 from arm64 updates. Fix this (per-arch `-c win-x64` / `-c win-arm64`, plus passing the matching channel into `GithubSource` based on `RuntimeInformation.ProcessArchitecture`) and test an actual update on both architectures before uploading these files for the first time. See `ToDo.md` for details.
+
 
 ---
 
