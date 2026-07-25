@@ -24,7 +24,7 @@ namespace FluentTaskScheduler.Dialogs
         {
             new Step
             {
-                Icon          = "\uE8A1",   // Calendar / Scheduler
+                Icon          = "\uE787",   // Calendar / Scheduler
                 Title         = L("Onboarding.Step1.Title", "Welcome to FluentTaskScheduler"),
                 Body          = L("Onboarding.Step1.Body", "Manage Windows Task Scheduler with a modern, fluent interface — no XML, no fuss."),
                 ShowHint      = false,
@@ -48,7 +48,7 @@ namespace FluentTaskScheduler.Dialogs
             },
             new Step
             {
-                Icon          = "\uE9F9",   // Chart / History
+                Icon          = "\uE9D2",   // Chart / History
                 Title         = L("Onboarding.Step4.Title", "Track history & status"),
                 Body          = L("Onboarding.Step4.Body", "Click any task to see its run history, success and failure counts, and live running status — all in one place."),
                 ShowHint      = false,
@@ -69,6 +69,22 @@ namespace FluentTaskScheduler.Dialogs
                 Body          = L("Onboarding.Step6.Body", "Use Task Discovery to scan the Windows Event Log and automatically import tasks created by other applications — no manual recreation needed."),
                 ShowHint      = false,
                 ShowAdminWarn = true        // admin required for Event Log access
+            },
+            new Step
+            {
+                Icon          = "\uEF90",   // Chain / flow
+                Title         = L("Onboarding.StepPipelines.Title", "Chain tasks and pause everything"),
+                Body          = L("Onboarding.StepPipelines.Body", "Set Completion Actions on a task to start other tasks when it succeeds or fails. Need a break? Snooze All Tasks pauses runs \u2014 for a fixed time, until reboot, or until you resume it."),
+                ShowHint      = false,
+                ShowAdminWarn = false
+            },
+            new Step
+            {
+                Icon          = "\uE9F9",   // Analytics
+                Title         = L("Onboarding.StepDashboard.Title", "Analyse and deploy faster"),
+                Body          = L("Onboarding.StepDashboard.Body", "The Dashboard shows an execution heatmap, health score, and live run log. The Library has ready-made task templates and reusable scripts you can deploy in one click."),
+                ShowHint      = false,
+                ShowAdminWarn = false
             },
             new Step
             {

@@ -319,6 +319,7 @@
   <data name="Settings.About.Onboard.Title" xml:space="preserve"><value>新手引导</value></data>
   <data name="Settings.About.Onboard.Desc" xml:space="preserve"><value>重新播放首次启动时的欢迎引导。</value></data>
   <data name="Settings.About.ViewAgain" xml:space="preserve"><value>再次查看</value></data>
+  <data name="Settings.About.VersionFormat" xml:space="preserve"><value>版本 {0}</value></data>
   <data name="Dashboard.AllTags" xml:space="preserve"><value>全部标签</value></data>
   <data name="Dashboard.AllCategories" xml:space="preserve"><value>全部分类</value></data>
   <data name="Dashboard.Today" xml:space="preserve"><value>今天</value></data>

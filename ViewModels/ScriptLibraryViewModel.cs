@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -21,6 +22,8 @@ namespace FluentTaskScheduler.ViewModels
         // Runtime-only, not serialized
         [JsonIgnore] public bool IsUserTemplate { get; set; }
         [JsonIgnore] public Visibility DeleteVisibility => IsUserTemplate ? Visibility.Visible : Visibility.Collapsed;
+        [JsonIgnore] public string UseLabel =>
+            Services.LocalizationService.GetString("ScriptLibraryUseTemplateBtn.Content", "Create Task from Script");
     }
 
     public class ScriptLibraryViewModel
@@ -31,11 +34,16 @@ namespace FluentTaskScheduler.ViewModels
 
         private static readonly JsonSerializerOptions _json = new() { WriteIndented = true };
 
+        /// <summary>Every loaded script (built-in + user), independent of the current search filter.</summary>
+        private readonly List<ScriptTemplateModel> _allScripts = new();
+        private string _currentFilter = "";
+
+        /// <summary>The subset of <see cref="_allScripts"/> matching the current search filter — this is what the UI binds to.</summary>
         public ObservableCollection<ScriptTemplateModel> Scripts { get; } = new();
 
         public async Task LoadScriptsAsync()
         {
-            if (Scripts.Count > 0) return;
+            if (_allScripts.Count > 0) return;
 
             // Built-in templates
             try
@@ -57,28 +65,47 @@ namespace FluentTaskScheduler.ViewModels
 
                 if (!string.IsNullOrWhiteSpace(json))
                 {
-                    var data = JsonSerializer.Deserialize<System.Collections.Generic.List<ScriptTemplateModel>>(json);
-                    if (data != null)
-                        foreach (var item in data) Scripts.Add(item);
+                    var data = JsonSerializer.Deserialize<List<ScriptTemplateModel>>(json);
+                    if (data != null) _allScripts.AddRange(data);
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Error loading scripts: {ex}"); }
 
             // User templates (appended after built-ins)
             LoadUserTemplates();
+            ApplyFilter(_currentFilter);
         }
 
         public void AddUserTemplate(ScriptTemplateModel model)
         {
             model.IsUserTemplate = true;
-            Scripts.Add(model);
+            _allScripts.Add(model);
             SaveUserTemplates();
+            ApplyFilter(_currentFilter);
         }
 
         public void DeleteUserTemplate(ScriptTemplateModel model)
         {
-            Scripts.Remove(model);
+            _allScripts.Remove(model);
             SaveUserTemplates();
+            ApplyFilter(_currentFilter);
+        }
+
+        /// <summary>Filters the displayed <see cref="Scripts"/> by name or description. Empty/null clears the filter.</summary>
+        public void ApplyFilter(string? query)
+        {
+            _currentFilter = query ?? "";
+
+            IEnumerable<ScriptTemplateModel> results = _allScripts;
+            if (!string.IsNullOrWhiteSpace(_currentFilter))
+            {
+                results = _allScripts.Where(s =>
+                    (s.Name != null && s.Name.Contains(_currentFilter, StringComparison.OrdinalIgnoreCase)) ||
+                    (s.Description != null && s.Description.Contains(_currentFilter, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            Scripts.Clear();
+            foreach (var s in results) Scripts.Add(s);
         }
 
         private void LoadUserTemplates()
@@ -87,9 +114,9 @@ namespace FluentTaskScheduler.ViewModels
             {
                 if (!File.Exists(_userTemplatesPath)) return;
                 var json = File.ReadAllText(_userTemplatesPath);
-                var data = JsonSerializer.Deserialize<System.Collections.Generic.List<ScriptTemplateModel>>(json);
+                var data = JsonSerializer.Deserialize<List<ScriptTemplateModel>>(json);
                 if (data != null)
-                    foreach (var item in data) { item.IsUserTemplate = true; Scripts.Add(item); }
+                    foreach (var item in data) { item.IsUserTemplate = true; _allScripts.Add(item); }
             }
             catch { }
         }
@@ -99,7 +126,7 @@ namespace FluentTaskScheduler.ViewModels
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(_userTemplatesPath)!);
-                var userTemplates = Scripts.Where(s => s.IsUserTemplate).ToList();
+                var userTemplates = _allScripts.Where(s => s.IsUserTemplate).ToList();
                 File.WriteAllText(_userTemplatesPath, JsonSerializer.Serialize(userTemplates, _json));
             }
             catch { }

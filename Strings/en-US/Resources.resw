@@ -636,5 +636,106 @@ Restart now to apply the update?</value></data>
   <data name="Dialog.Common.Off" xml:space="preserve"><value>Off</value></data>
   <data name="Settings.Sys.Pipelines.Title" xml:space="preserve"><value>Task Pipelines</value></data>
   <data name="Settings.Sys.Pipelines.Desc" xml:space="preserve"><value>Watch the Task Scheduler event log and start the downstream tasks configured under a task's Completion Actions.</value></data>
+  <data name="Main.Nav.Library" xml:space="preserve"><value>Library</value></data>
+  <data name="Main.Header.Library" xml:space="preserve"><value>Library</value></data>
+  <data name="Main.Status.All" xml:space="preserve"><value>All statuses</value></data>
+  <data name="Main.Status.Running" xml:space="preserve"><value>Running</value></data>
+  <data name="Main.Status.Enabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="Main.Status.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Main.Status.Snoozed" xml:space="preserve"><value>Snoozed</value></data>
+  <data name="Snooze.Toolbar.Idle" xml:space="preserve"><value>Snooze All</value></data>
+  <data name="Snooze.Toolbar.Active" xml:space="preserve"><value>Snoozed</value></data>
+  <data name="Library.Subtitle" xml:space="preserve"><value>Deploy a ready-made scheduled task, or reuse a saved command as the action for a new task. Nothing is created until you save the task editor.</value></data>
+  <data name="Library.Section.Templates" xml:space="preserve"><value>Task Templates</value></data>
+  <data name="Library.Section.Scripts" xml:space="preserve"><value>Scripts</value></data>
+  <data name="Pipeline.EnableSubtitle" xml:space="preserve"><value>Turn this off to keep the configuration without acting on it.</value></data>
+  <data name="Pipeline.SuccessHeader" xml:space="preserve"><value>On success</value></data>
+  <data name="Pipeline.SuccessHint" xml:space="preserve"><value>Started when the action exits with code 0.</value></data>
+  <data name="Pipeline.FailureHeader" xml:space="preserve"><value>On failure</value></data>
+  <data name="Pipeline.FailureHint" xml:space="preserve"><value>Started on any non-zero exit code, or if the action could not launch.</value></data>
+  <data name="Settings.About.VersionFormat" xml:space="preserve"><value>Version {0}</value></data>
+  <data name="EventLevel.Critical" xml:space="preserve"><value>Critical</value></data>
+  <data name="EventLevel.Error" xml:space="preserve"><value>Error</value></data>
+  <data name="EventLevel.Warning" xml:space="preserve"><value>Warning</value></data>
+  <data name="EventLevel.Information" xml:space="preserve"><value>Information</value></data>
+  <data name="EventLevel.Verbose" xml:space="preserve"><value>Verbose</value></data>
+  <data name="EventResult.100" xml:space="preserve"><value>Task Started</value></data>
+  <data name="EventResult.102" xml:space="preserve"><value>Task Completed</value></data>
+  <data name="EventResult.103" xml:space="preserve"><value>Task Failed</value></data>
+  <data name="EventResult.106" xml:space="preserve"><value>Task Registered</value></data>
+  <data name="EventResult.107" xml:space="preserve"><value>Task Triggered</value></data>
+  <data name="EventResult.110" xml:space="preserve"><value>Task Launched</value></data>
+  <data name="EventResult.111" xml:space="preserve"><value>Task Terminated</value></data>
+  <data name="EventResult.129" xml:space="preserve"><value>Action Started</value></data>
+  <data name="EventResult.200" xml:space="preserve"><value>Action Started</value></data>
+  <data name="EventResult.201" xml:space="preserve"><value>Action Completed</value></data>
+  <data name="EventResult.203" xml:space="preserve"><value>Action Launch Failed</value></data>
+  <data name="EventResult.322" xml:space="preserve"><value>Launch Skipped (already running)</value></data>
+  <data name="EventResult.Unknown" xml:space="preserve"><value>Event {0}</value></data>
+  <data name="EventMsg.100" xml:space="preserve"><value>Task Scheduler started an instance of task "{0}" for user "{1}".</value></data>
+  <data name="EventMsg.102" xml:space="preserve"><value>Task Scheduler successfully finished task "{0}".</value></data>
+  <data name="EventMsg.103" xml:space="preserve"><value>Task Scheduler failed to start an instance of task "{0}" (error {1}).</value></data>
+  <data name="EventMsg.106" xml:space="preserve"><value>User "{0}" registered task "{1}".</value></data>
+  <data name="EventMsg.107" xml:space="preserve"><value>Task Scheduler launched task "{0}" from a time trigger.</value></data>
+  <data name="EventMsg.110" xml:space="preserve"><value>Task Scheduler launched task "{0}" for user "{1}".</value></data>
+  <data name="EventMsg.111" xml:space="preserve"><value>Task Scheduler terminated task "{0}" because it exceeded its configured time limit.</value></data>
+  <data name="EventMsg.129" xml:space="preserve"><value>Task Scheduler launched action "{0}" of task "{1}".</value></data>
+  <data name="EventMsg.200" xml:space="preserve"><value>Task Scheduler launched action "{0}" of task "{1}".</value></data>
+  <data name="EventMsg.201" xml:space="preserve"><value>Task Scheduler completed action "{0}" of task "{1}" with return code {2}.</value></data>
+  <data name="EventMsg.203" xml:space="preserve"><value>Task Scheduler failed to launch action "{0}" of task "{1}" (error {2}).</value></data>
+  <data name="EventMsg.322" xml:space="preserve"><value>Task Scheduler did not launch task "{0}" because an instance is already running.</value></data>
+  <data name="Templates.RestorePoint.Name" xml:space="preserve"><value>Weekly System Restore Point</value></data>
+  <data name="Templates.RestorePoint.Desc" xml:space="preserve"><value>Creates a named System Restore point once a week so you always have a recent rollback target.</value></data>
+  <data name="Templates.RestorePoint.Note" xml:space="preserve"><value>Requires administrator privileges and System Protection to be enabled.</value></data>
+  <data name="Templates.SystemScan.Name" xml:space="preserve"><value>System File Integrity Scan</value></data>
+  <data name="Templates.SystemScan.Desc" xml:space="preserve"><value>Runs DISM component-store repair followed by System File Checker, writing the result to a log in your Documents folder.</value></data>
+  <data name="Templates.SystemScan.Note" xml:space="preserve"><value>Requires administrator privileges and can run for 15+ minutes.</value></data>
+  <data name="Templates.DnsFlush.Name" xml:space="preserve"><value>Flush DNS Cache at Logon</value></data>
+  <data name="Templates.DnsFlush.Desc" xml:space="preserve"><value>Clears the DNS resolver cache when you sign in - useful when you switch networks or VPNs often.</value></data>
+  <data name="Templates.DnsFlush.Note" xml:space="preserve"><value>Requires administrator privileges.</value></data>
+  <data name="Templates.NodePrune.Name" xml:space="preserve"><value>npm / pnpm Cache Prune</value></data>
+  <data name="Templates.NodePrune.Desc" xml:space="preserve"><value>Verifies and prunes the npm cache and removes stale pnpm store entries to reclaim several gigabytes.</value></data>
+  <data name="Templates.NodePrune.Note" xml:space="preserve"><value>Requires Node.js on PATH.</value></data>
+  <data name="Templates.ProjectBackup.Name" xml:space="preserve"><value>Nightly Project Folder Backup</value></data>
+  <data name="Templates.ProjectBackup.Desc" xml:space="preserve"><value>Mirrors a project folder to a backup location with robocopy, skipping build output and dependency folders.</value></data>
+  <data name="Templates.ProjectBackup.Note" xml:space="preserve"><value>/MIR deletes files in the destination that no longer exist in the source. Check both paths first.</value></data>
+  <data name="Templates.DevServerRestart.Name" xml:space="preserve"><value>Restart a Windows Service Nightly</value></data>
+  <data name="Templates.DevServerRestart.Desc" xml:space="preserve"><value>Restarts a long-running service (build agent, database, local server) to clear leaks. Change the service name before saving.</value></data>
+  <data name="Templates.DevServerRestart.Note" xml:space="preserve"><value>Requires administrator privileges. Replace 'MSSQLSERVER' with your own service name.</value></data>
+  <data name="Templates.DisplayOff.Name" xml:space="preserve"><value>Turn Off Displays on Lock</value></data>
+  <data name="Templates.DisplayOff.Desc" xml:space="preserve"><value>Switches the monitors off as soon as you lock the workstation instead of waiting for the power timeout.</value></data>
+  <data name="Templates.DisplayOff.Note" xml:space="preserve"><value>Set the trigger's session state to "Lock" in the editor if it is not already.</value></data>
+  <data name="Templates.WeeklyReboot.Name" xml:space="preserve"><value>Weekly Restart when Idle</value></data>
+  <data name="Templates.WeeklyReboot.Desc" xml:space="preserve"><value>Restarts the machine once a week during the night, but only while it is idle, to apply pending updates.</value></data>
+  <data name="Templates.WeeklyReboot.Note" xml:space="preserve"><value>Restarts the machine. Unsaved work in open apps may be lost.</value></data>
+  <data name="EventResult.108" xml:space="preserve"><value>Start Failed</value></data>
+  <data name="EventResult.118" xml:space="preserve"><value>Boot Trigger</value></data>
+  <data name="EventResult.119" xml:space="preserve"><value>Logon Trigger</value></data>
+  <data name="EventResult.140" xml:space="preserve"><value>Task Updated</value></data>
+  <data name="EventResult.141" xml:space="preserve"><value>Task Deleted</value></data>
+  <data name="EventResult.142" xml:space="preserve"><value>Task Disabled</value></data>
+  <data name="EventResult.153" xml:space="preserve"><value>Schedule Missed</value></data>
+  <data name="EventResult.202" xml:space="preserve"><value>Action Failed</value></data>
+  <data name="EventResult.329" xml:space="preserve"><value>Stopped (time limit)</value></data>
+  <data name="EventResult.331" xml:space="preserve"><value>Stopped (on battery)</value></data>
+  <data name="EventResult.332" xml:space="preserve"><value>Skipped (conditions not met)</value></data>
+  <data name="EventMsg.108" xml:space="preserve"><value>Task Scheduler failed to start task "{0}" (error {1}).</value></data>
+  <data name="EventMsg.118" xml:space="preserve"><value>Task Scheduler launched task "{0}" from a boot trigger.</value></data>
+  <data name="EventMsg.119" xml:space="preserve"><value>Task Scheduler launched task "{0}" from a logon trigger.</value></data>
+  <data name="EventMsg.140" xml:space="preserve"><value>User "{0}" updated the definition of task "{1}".</value></data>
+  <data name="EventMsg.141" xml:space="preserve"><value>User "{0}" deleted task "{1}".</value></data>
+  <data name="EventMsg.142" xml:space="preserve"><value>User "{0}" disabled task "{1}".</value></data>
+  <data name="EventMsg.153" xml:space="preserve"><value>Task Scheduler did not start task "{0}" because the schedule was missed. Enable "Run task as soon as possible after a scheduled start is missed" to catch up.</value></data>
+  <data name="EventMsg.202" xml:space="preserve"><value>Action "{0}" of task "{1}" failed with return code {2}.</value></data>
+  <data name="EventMsg.329" xml:space="preserve"><value>Task Scheduler stopped task "{0}" because it exceeded its configured time limit.</value></data>
+  <data name="EventMsg.331" xml:space="preserve"><value>Task Scheduler stopped task "{0}" because the computer switched to battery power.</value></data>
+  <data name="EventMsg.332" xml:space="preserve"><value>Task Scheduler did not launch task "{0}" because the required conditions (idle, network or power) were not met.</value></data>
+  <data name="Onboarding.StepPipelines.Title" xml:space="preserve"><value>Chain tasks and pause everything</value></data>
+  <data name="Onboarding.StepPipelines.Body" xml:space="preserve"><value>Set Completion Actions on a task to start other tasks when it succeeds or fails. Need a break? Snooze All Tasks pauses runs - for a fixed time, until reboot, or until you resume it.</value></data>
+  <data name="Onboarding.StepDashboard.Title" xml:space="preserve"><value>Analyse and deploy faster</value></data>
+  <data name="Onboarding.StepDashboard.Body" xml:space="preserve"><value>The Dashboard shows an execution heatmap, health score, and live run log. The Library has ready-made task templates and reusable scripts you can deploy in one click.</value></data>
+  <data name="Library.Search.Placeholder" xml:space="preserve"><value>Search...</value></data>
+  <data name="Library.Search.NoTemplates" xml:space="preserve"><value>No templates match your search.</value></data>
+  <data name="Library.Search.NoScripts" xml:space="preserve"><value>No scripts match your search.</value></data>
 </root>
 

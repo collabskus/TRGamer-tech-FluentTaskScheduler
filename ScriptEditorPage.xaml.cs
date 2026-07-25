@@ -19,11 +19,39 @@ namespace FluentTaskScheduler
         private readonly DispatcherTimer _highlightTimer;
         private bool _isHighlighting = false;
 
+        private static string L(string key, string fallback) => LocalizationService.GetString(key, fallback);
+
         public ScriptEditorPage()
         {
             this.InitializeComponent();
             _highlightTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _highlightTimer.Tick += (s, e) => { _highlightTimer.Stop(); HighlightCode(); };
+
+            LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
+            this.Unloaded += (s, e) => LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
+            ApplyLocalizedUi();
+        }
+
+        private void LocalizationService_LanguageChanged(object? sender, EventArgs e)
+        {
+            if (DispatcherQueue == null) return;
+            DispatcherQueue.TryEnqueue(ApplyLocalizedUi);
+        }
+
+        /// <summary>
+        /// Fills every label from LocalizationService. These used to rely on x:Uid, which resolves
+        /// against the Windows display language rather than the app's language setting.
+        /// </summary>
+        private void ApplyLocalizedUi()
+        {
+            RunButton.Label = L("ScriptEditor_RunBtn.Label", "Run");
+            StopButton.Label = L("ScriptEditor_StopBtn.Label", "Stop");
+            SaveButton.Label = L("ScriptEditor_SaveBtn.Label", "Save to Library");
+            ClearButton.Label = L("ScriptEditor_ClearBtn.Label", "Clear Console");
+
+            CodeEditor.Header = L("ScriptEditor_CodeEditor.Header", "PowerShell Script");
+            CodeEditor.PlaceholderText = L("ScriptEditor_CodeEditor.PlaceholderText", "Write your PowerShell script here...");
+            OutputHeaderText.Text = L("ScriptEditor_OutputHeader.Text", "Output Console");
         }
 
         private void Page_Loaded(object sender, RoutedEventArgs e)

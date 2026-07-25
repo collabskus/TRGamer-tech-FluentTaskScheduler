@@ -200,6 +200,156 @@ namespace FluentTaskScheduler.Services
             },
             new TaskTemplate
             {
+                Id = "maint.restore-point",
+                Group = GroupMaintenance,
+                Glyph = "\uE81C",
+                Name = L("Templates.RestorePoint.Name", "Weekly System Restore Point"),
+                Description = L("Templates.RestorePoint.Desc",
+                    "Creates a named System Restore point once a week so you always have a recent rollback target."),
+                Command = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -Command " +
+                            "\"Checkpoint-Computer -Description 'Weekly automatic checkpoint' -RestorePointType MODIFY_SETTINGS\"",
+                RunAsAdmin = true,
+                OnlyIfAC = true,
+                TaskCategory = "Maintenance",
+                Tags = new List<string> { "backup", "recovery" },
+                TriggerType = "Weekly",
+                TriggerHour = 12,
+                WeeklyDays = new List<string> { "Wednesday" },
+                Note = L("Templates.RestorePoint.Note", "Requires administrator privileges and System Protection to be enabled.")
+            },
+            new TaskTemplate
+            {
+                Id = "maint.dism-sfc",
+                Group = GroupMaintenance,
+                Glyph = "\uE90F",
+                Name = L("Templates.SystemScan.Name", "System File Integrity Scan"),
+                Description = L("Templates.SystemScan.Desc",
+                    "Runs DISM component-store repair followed by System File Checker, writing the result to a log in your Documents folder."),
+                Command = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -Command " +
+                            "\"$out=Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'SystemScan.log'; " +
+                            "DISM /Online /Cleanup-Image /RestoreHealth | Out-File -Append $out; " +
+                            "sfc /scannow | Out-File -Append $out\"",
+                RunAsAdmin = true,
+                OnlyIfIdle = true,
+                OnlyIfAC = true,
+                TaskCategory = "Maintenance",
+                Tags = new List<string> { "health", "repair" },
+                TriggerType = "Weekly",
+                TriggerHour = 4,
+                WeeklyDays = new List<string> { "Saturday" },
+                Note = L("Templates.SystemScan.Note", "Requires administrator privileges and can run for 15+ minutes.")
+            },
+            new TaskTemplate
+            {
+                Id = "maint.dns-flush",
+                Group = GroupMaintenance,
+                Glyph = "\uE968",
+                Name = L("Templates.DnsFlush.Name", "Flush DNS Cache at Logon"),
+                Description = L("Templates.DnsFlush.Desc",
+                    "Clears the DNS resolver cache when you sign in — useful when you switch networks or VPNs often."),
+                Command = "ipconfig.exe",
+                Arguments = "/flushdns",
+                RunAsAdmin = true,
+                TaskCategory = "Maintenance",
+                Tags = new List<string> { "network" },
+                TriggerType = "AtLogon",
+                RunIfMissed = false,
+                Note = L("Templates.DnsFlush.Note", "Requires administrator privileges.")
+            },
+            new TaskTemplate
+            {
+                Id = "dev.node-cache-prune",
+                Group = GroupDeveloper,
+                Glyph = "\uE7B8",
+                Name = L("Templates.NodePrune.Name", "npm / pnpm Cache Prune"),
+                Description = L("Templates.NodePrune.Desc",
+                    "Verifies and prunes the npm cache and removes stale pnpm store entries to reclaim several gigabytes."),
+                Command = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -Command " +
+                            "\"npm cache verify; if (Get-Command pnpm -ErrorAction SilentlyContinue) { pnpm store prune }\"",
+                TaskCategory = "Work",
+                Tags = new List<string> { "node", "cleanup" },
+                TriggerType = "Weekly",
+                TriggerHour = 18,
+                WeeklyDays = new List<string> { "Friday" },
+                Note = L("Templates.NodePrune.Note", "Requires Node.js on PATH.")
+            },
+            new TaskTemplate
+            {
+                Id = "dev.project-backup",
+                Group = GroupDeveloper,
+                Glyph = "\uE8F7",
+                Name = L("Templates.ProjectBackup.Name", "Nightly Project Folder Backup"),
+                Description = L("Templates.ProjectBackup.Desc",
+                    "Mirrors a project folder to a backup location with robocopy, skipping build output and dependency folders."),
+                Command = "robocopy.exe",
+                Arguments = "\"C:\\Projects\" \"D:\\Backups\\Projects\" /MIR /XD node_modules bin obj .git /R:1 /W:1 /NP",
+                TaskCategory = "Work",
+                Tags = new List<string> { "backup" },
+                TriggerType = "Daily",
+                TriggerHour = 2,
+                TriggerMinute = 30,
+                RunIfMissed = true,
+                Note = L("Templates.ProjectBackup.Note", "/MIR deletes files in the destination that no longer exist in the source. Check both paths first.")
+            },
+            new TaskTemplate
+            {
+                Id = "dev.build-server-restart",
+                Group = GroupDeveloper,
+                Glyph = "\uE72C",
+                Name = L("Templates.DevServerRestart.Name", "Restart a Windows Service Nightly"),
+                Description = L("Templates.DevServerRestart.Desc",
+                    "Restarts a long-running service (build agent, database, local server) to clear leaks. Change the service name before saving."),
+                Command = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Restart-Service -Name 'MSSQLSERVER' -Force\"",
+                RunAsAdmin = true,
+                TaskCategory = "Work",
+                Tags = new List<string> { "service" },
+                TriggerType = "Daily",
+                TriggerHour = 5,
+                Note = L("Templates.DevServerRestart.Note", "Requires administrator privileges. Replace 'MSSQLSERVER' with your own service name.")
+            },
+            new TaskTemplate
+            {
+                Id = "power.display-off",
+                Group = GroupPower,
+                Glyph = "\uE7F4",
+                Name = L("Templates.DisplayOff.Name", "Turn Off Displays on Lock"),
+                Description = L("Templates.DisplayOff.Desc",
+                    "Switches the monitors off as soon as you lock the workstation instead of waiting for the power timeout."),
+                Command = "powershell.exe",
+                Arguments = "-NoProfile -WindowStyle Hidden -Command " +
+                            "\"(Add-Type '[DllImport(\\\"user32.dll\\\")]public static extern int SendMessage(int hWnd,int hMsg,int wParam,int lParam);' " +
+                            "-Name W -PassThru)::SendMessage(0xffff,0x0112,0xF170,2)\"",
+                TaskCategory = "System",
+                Tags = new List<string> { "power", "display" },
+                TriggerType = "SessionStateChange",
+                RunIfMissed = false,
+                Note = L("Templates.DisplayOff.Note", "Set the trigger's session state to \"Lock\" in the editor if it is not already.")
+            },
+            new TaskTemplate
+            {
+                Id = "power.weekly-reboot",
+                Group = GroupPower,
+                Glyph = "\uE777",
+                Name = L("Templates.WeeklyReboot.Name", "Weekly Restart when Idle"),
+                Description = L("Templates.WeeklyReboot.Desc",
+                    "Restarts the machine once a week during the night, but only while it is idle, to apply pending updates."),
+                Command = "shutdown.exe",
+                Arguments = "/r /t 120 /c \"Scheduled weekly restart. Run 'shutdown /a' to cancel.\"",
+                OnlyIfIdle = true,
+                RunIfMissed = false,
+                TaskCategory = "System",
+                Tags = new List<string> { "power", "updates" },
+                TriggerType = "Weekly",
+                TriggerHour = 4,
+                WeeklyDays = new List<string> { "Sunday" },
+                Note = L("Templates.WeeklyReboot.Note", "Restarts the machine. Unsaved work in open apps may be lost.")
+            },
+            new TaskTemplate
+            {
                 Id = "power.startup-cleanup",
                 Group = GroupPower,
                 Glyph = "\uE72C",

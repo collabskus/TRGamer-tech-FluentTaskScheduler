@@ -237,7 +237,8 @@ namespace FluentTaskScheduler
                             {
                                 sb.AppendLine($"\"{h.Time}\",{h.EventId},\"{h.Result}\",\"{h.User}\",{h.ExitCode},\"{h.Message.Replace("\"", "\"\"")}\"");
                             }
-                            System.IO.File.WriteAllText(output, sb.ToString());
+                            // UTF-8 *with* BOM so Excel and PowerShell don't mangle non-ASCII names.
+                            System.IO.File.WriteAllText(output, sb.ToString(), new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
                             Console.WriteLine("Export complete.");
                         }
                         else
@@ -483,7 +484,9 @@ namespace FluentTaskScheduler
                 Application.Current.Resources["TaskCardBackground"] = Application.Current.Resources["CardBackgroundFillColorDefaultBrush"];
                 Application.Current.Resources["TaskCardBorder"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
 
-                if (SS.IsOledMode && SS.Theme == ElementTheme.Dark)
+                // Use the resolved theme, not the stored preference: "System Default" on a dark
+                // OS is still dark, and OLED mode has to apply there too.
+                if (SS.IsOledMode && root.ActualTheme == ElementTheme.Dark)
                 {
                     var black = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Black);
                     root.Background = black;

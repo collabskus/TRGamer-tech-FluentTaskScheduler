@@ -19,6 +19,13 @@ namespace FluentTaskScheduler.Dialogs
             : $"{Name}  ({Path})";
     }
 
+    /// <summary>A configured downstream target, shown as name + full path in the branch lists.</summary>
+    public class PipelineTargetRow
+    {
+        public string Path { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+
     /// <summary>
     /// Editor for a task's completion actions ("execution pipeline"): which tasks run after this
     /// one finishes, split by exit code 0 vs non-zero.
@@ -26,8 +33,9 @@ namespace FluentTaskScheduler.Dialogs
     public sealed partial class TaskPipelineDialog : ContentDialog
     {
         private readonly string _ownTaskPath;
-        private readonly ObservableCollection<string> _successPaths = new();
-        private readonly ObservableCollection<string> _failurePaths = new();
+        private readonly ObservableCollection<PipelineTargetRow> _successTargets = new();
+        private readonly ObservableCollection<PipelineTargetRow> _failureTargets = new();
+        private readonly Dictionary<string, string> _nameByPath = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>The edited pipeline. Only meaningful once the dialog returned Primary.</summary>
         public TaskPipeline Result { get; private set; } = new();
@@ -43,14 +51,6 @@ namespace FluentTaskScheduler.Dialogs
             _ownTaskPath = ownTaskPath ?? "";
             this.RequestedTheme = SettingsService.Theme;
 
-            var existing = current?.Clone() ?? new TaskPipeline();
-            foreach (var p in existing.OnSuccessTasks) _successPaths.Add(p);
-            foreach (var p in existing.OnFailureTasks) _failurePaths.Add(p);
-
-            SuccessList.ItemsSource = _successPaths;
-            FailureList.ItemsSource = _failurePaths;
-            PipelineEnabledSwitch.IsOn = existing.IsEnabled;
-
             var choices = (availableTasks ?? Enumerable.Empty<ScheduledTaskModel>())
                 .Where(t => !string.IsNullOrWhiteSpace(t.Path))
                 .Where(t => !string.Equals(t.Path, _ownTaskPath, StringComparison.OrdinalIgnoreCase))
@@ -58,6 +58,16 @@ namespace FluentTaskScheduler.Dialogs
                 .OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
                 .Select(t => new PipelineTaskChoice { Path = t.Path, Name = t.Name })
                 .ToList();
+
+            foreach (var c in choices) _nameByPath[c.Path] = c.Name;
+
+            var existing = current?.Clone() ?? new TaskPipeline();
+            foreach (var p in existing.OnSuccessTasks) _successTargets.Add(ToRow(p));
+            foreach (var p in existing.OnFailureTasks) _failureTargets.Add(ToRow(p));
+
+            SuccessList.ItemsSource = _successTargets;
+            FailureList.ItemsSource = _failureTargets;
+            PipelineEnabledSwitch.IsOn = existing.IsEnabled;
 
             SuccessTaskPicker.ItemsSource = choices;
             FailureTaskPicker.ItemsSource = new List<PipelineTaskChoice>(choices);
@@ -72,9 +82,16 @@ namespace FluentTaskScheduler.Dialogs
             }
         }
 
+        /// <summary>Resolves a stored path to a display row; unknown paths still show their file name.</summary>
+        private PipelineTargetRow ToRow(string path) => new()
+        {
+            Path = path,
+            Name = _nameByPath.TryGetValue(path, out var name) ? name : System.IO.Path.GetFileName(path)
+        };
+
         private void ApplyLocalizedUi()
         {
-            Title = L("Pipeline.Dialog.Title", "Completion Actions (Task Pipeline)");
+            Title = L("Pipeline.Dialog.Title", "Completion Actions");
             PrimaryButtonText = L("Dialog.Common.Save", "Save");
             CloseButtonText = L("Dialog.Common.Cancel", "Cancel");
 
@@ -84,17 +101,19 @@ namespace FluentTaskScheduler.Dialogs
                 "Exit code 0 starts the success tasks; any other code starts the failure tasks. " +
                 "The app must be running for chained tasks to be started, and chains are skipped while Global Snooze is active.");
 
-            PipelineEnabledSwitch.Header = L("Pipeline.EnableSwitch", "Run downstream tasks when this task completes");
-            PipelineEnabledSwitch.OnContent = L("Dialog.Common.On", "On");
-            PipelineEnabledSwitch.OffContent = L("Dialog.Common.Off", "Off");
+            EnableTitle.Text = L("Pipeline.EnableSwitch", "Run downstream tasks when this task completes");
+            EnableSubtitle.Text = L("Pipeline.EnableSubtitle",
+                "Turn this off to keep the configuration without acting on it.");
 
-            OnSuccessHeader.Text = L("Pipeline.OnSuccess", "On success (exit code 0)");
-            OnFailureHeader.Text = L("Pipeline.OnFailure", "On failure (any other exit code)");
+            OnSuccessHeader.Text = L("Pipeline.SuccessHeader", "On success");
+            OnSuccessHint.Text = L("Pipeline.SuccessHint", "Started when the action exits with code 0.");
+            OnFailureHeader.Text = L("Pipeline.FailureHeader", "On failure");
+            OnFailureHint.Text = L("Pipeline.FailureHint", "Started on any non-zero exit code, or if the action could not launch.");
 
-            AddSuccessButton.Content = L("Pipeline.Add", "Add");
-            AddFailureButton.Content = L("Pipeline.Add", "Add");
-            RemoveSuccessButton.Content = L("Pipeline.Remove", "Remove selected");
-            RemoveFailureButton.Content = L("Pipeline.Remove", "Remove selected");
+            ToolTipService.SetToolTip(AddSuccessButton, L("Pipeline.Add", "Add"));
+            ToolTipService.SetToolTip(AddFailureButton, L("Pipeline.Add", "Add"));
+            RemoveSuccessText.Text = L("Pipeline.Remove", "Remove selected");
+            RemoveFailureText.Text = L("Pipeline.Remove", "Remove selected");
 
             SuccessTaskPicker.PlaceholderText = L("Pipeline.PickTask", "Choose a task...");
             FailureTaskPicker.PlaceholderText = L("Pipeline.PickTask", "Choose a task...");
@@ -110,32 +129,33 @@ namespace FluentTaskScheduler.Dialogs
 
         private void UpdateBodyState()
         {
-            // The lists stay visible when disabled so the user can see what is configured.
+            // The lists stay visible when disabled so the user can still see what is configured.
             if (PipelineBodyPanel != null)
                 PipelineBodyPanel.Opacity = PipelineEnabledSwitch.IsOn ? 1.0 : 0.5;
         }
 
         private void AddSuccess_Click(object sender, RoutedEventArgs e) =>
-            AddChoice(SuccessTaskPicker, _successPaths, _failurePaths);
+            AddChoice(SuccessTaskPicker, _successTargets, _failureTargets);
 
         private void AddFailure_Click(object sender, RoutedEventArgs e) =>
-            AddChoice(FailureTaskPicker, _failurePaths, _successPaths);
+            AddChoice(FailureTaskPicker, _failureTargets, _successTargets);
 
-        private void AddChoice(ComboBox picker, ObservableCollection<string> target, ObservableCollection<string> other)
+        private void AddChoice(ComboBox picker, ObservableCollection<PipelineTargetRow> target,
+                               ObservableCollection<PipelineTargetRow> other)
         {
             if (picker.SelectedItem is not PipelineTaskChoice choice) return;
 
-            if (target.Contains(choice.Path, StringComparer.OrdinalIgnoreCase))
+            if (target.Any(r => string.Equals(r.Path, choice.Path, StringComparison.OrdinalIgnoreCase)))
             {
                 ShowWarning(string.Format(L("Pipeline.Warning.Duplicate", "'{0}' is already in this list."), choice.Name));
                 return;
             }
 
-            target.Add(choice.Path);
+            target.Add(new PipelineTargetRow { Path = choice.Path, Name = choice.Name });
             PipelineWarningBar.IsOpen = false;
             picker.SelectedItem = null;
 
-            if (other.Contains(choice.Path, StringComparer.OrdinalIgnoreCase))
+            if (other.Any(r => string.Equals(r.Path, choice.Path, StringComparison.OrdinalIgnoreCase)))
             {
                 ShowWarning(string.Format(
                     L("Pipeline.Warning.BothLists", "'{0}' now runs on both success and failure — it will start after every completion."),
@@ -145,12 +165,12 @@ namespace FluentTaskScheduler.Dialogs
 
         private void RemoveSuccess_Click(object sender, RoutedEventArgs e)
         {
-            if (SuccessList.SelectedItem is string path) _successPaths.Remove(path);
+            if (SuccessList.SelectedItem is PipelineTargetRow row) _successTargets.Remove(row);
         }
 
         private void RemoveFailure_Click(object sender, RoutedEventArgs e)
         {
-            if (FailureList.SelectedItem is string path) _failurePaths.Remove(path);
+            if (FailureList.SelectedItem is PipelineTargetRow row) _failureTargets.Remove(row);
         }
 
         private void Dialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -158,8 +178,8 @@ namespace FluentTaskScheduler.Dialogs
             Result = new TaskPipeline
             {
                 IsEnabled = PipelineEnabledSwitch.IsOn,
-                OnSuccessTasks = _successPaths.ToList(),
-                OnFailureTasks = _failurePaths.ToList()
+                OnSuccessTasks = _successTargets.Select(r => r.Path).ToList(),
+                OnFailureTasks = _failureTargets.Select(r => r.Path).ToList()
             };
 
             if (Result.IsEnabled && !Result.HasAnyTargets)

@@ -23,11 +23,38 @@ namespace FluentTaskScheduler
             this.InitializeComponent();
             Loaded += SettingsPage_Loaded;
             LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
+
+            // With "System Default" selected, the OS switching to dark must un-grey OLED mode.
+            ActualThemeChanged += SettingsPage_ActualThemeChanged;
+        }
+
+        /// <summary>
+        /// Reads the version off the running assembly so it can never drift from the csproj.
+        /// </summary>
+        internal static string GetAppVersion()
+        {
+            try
+            {
+                var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                return version == null ? "" : $"{version.Major}.{version.Minor}.{version.Build}";
+            }
+            catch (Exception ex)
+            {
+                LogService.Warn($"Could not read the assembly version: {ex.Message}");
+                return "";
+            }
+        }
+
+        private void SettingsPage_ActualThemeChanged(FrameworkElement sender, object args)
+        {
+            if (!_isLoaded) return;
+            UpdateOledToggleState();
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
             LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
+            ActualThemeChanged -= SettingsPage_ActualThemeChanged;
             base.OnNavigatedFrom(e);
         }
 
@@ -86,7 +113,7 @@ namespace FluentTaskScheduler
             SpecificLogsCard.Visibility = SettingsService.EnableLogging ? Visibility.Visible : Visibility.Collapsed;
 
             // Init sidebar panels — sync visibility with current selection
-            _panels = new[] { PanelAppearance, PanelNotifications, PanelSystem, PanelAdvanced, PanelData, PanelCategories, PanelAbout };
+            _panels = new[] { PanelAppearance, PanelNotifications, PanelSystem, PanelAdvanced, PanelCategories, PanelAbout };
             SyncPanelVisibility();
 
             // Categories & Tags initial load
@@ -124,7 +151,6 @@ namespace FluentTaskScheduler
             PanelNotifications.Visibility = tag == "Notifications" ? Visibility.Visible : Visibility.Collapsed;
             PanelSystem.Visibility = tag == "System" ? Visibility.Visible : Visibility.Collapsed;
             PanelAdvanced.Visibility = tag == "Advanced" ? Visibility.Visible : Visibility.Collapsed;
-            PanelData.Visibility = tag == "Data" ? Visibility.Visible : Visibility.Collapsed;
             PanelCategories.Visibility = tag == "Categories" ? Visibility.Visible : Visibility.Collapsed;
             PanelAbout.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -166,11 +192,27 @@ namespace FluentTaskScheduler
             LogService.Info($"OLED Mode: {(OledModeToggle.IsOn ? "enabled" : "disabled")}");
         }
 
+        /// <summary>
+        /// OLED mode only makes sense on a dark surface. "System Default" resolves to whatever the
+        /// OS is currently using, so the toggle must follow the *effective* theme rather than the
+        /// stored preference - otherwise it stayed greyed out on a dark-themed system.
+        /// </summary>
         private void UpdateOledToggleState()
         {
-            bool isDark = SettingsService.Theme == ElementTheme.Dark;
+            bool isDark = IsEffectivelyDark();
             OledModeToggle.IsEnabled = isDark;
             MicaModeToggle.IsEnabled = !isDark || !SettingsService.IsOledMode;
+        }
+
+        private bool IsEffectivelyDark()
+        {
+            return SettingsService.Theme switch
+            {
+                ElementTheme.Dark => true,
+                ElementTheme.Light => false,
+                // Default: ask the framework what it actually resolved to for this page.
+                _ => ActualTheme == ElementTheme.Dark
+            };
         }
 
         private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -194,7 +236,6 @@ namespace FluentTaskScheduler
             NavNotificationsItem.Content = L("Settings.Nav.Notifications", "Notifications");
             NavSystemItem.Content = L("Settings.Nav.System", "System");
             NavAdvancedItem.Content = L("Settings.Nav.Advanced", "Advanced");
-            NavDataItem.Content = L("Settings.Nav.Data", "Data");
             NavCategoriesItem.Content = L("Settings.Nav.Categories", "Categories & Tags");
             NavAboutItem.Content = L("Settings.Nav.About", "About");
 
@@ -205,6 +246,7 @@ namespace FluentTaskScheduler
             DataHeaderText.Text = L("Settings.Section.Data", "Data");
             CategoriesHeaderText.Text = L("Settings.Section.Categories", "Categories & Tags");
             AboutHeaderText.Text = L("Settings.Section.About", "About");
+            AboutVersionText.Text = string.Format(L("Settings.About.VersionFormat", "Version {0}"), GetAppVersion());
             LanguageTitleText.Text = L("Settings.Appearance.Language.Title", "Language");
             LanguageDescriptionText.Text = L("Settings.Appearance.Language.Description", "Choose the display language for the app.");
             AppThemeTitleText.Text = L("Settings.Appearance.Theme.Title", "App Theme");

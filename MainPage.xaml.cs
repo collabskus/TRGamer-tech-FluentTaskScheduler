@@ -59,7 +59,7 @@ namespace FluentTaskScheduler
                 ViewModel.SearchText = SearchBox.Text;
             };
             
-            NavView.SelectedItem = NavView.FooterMenuItems[0];  // Select "All Tasks"
+            NavView.SelectedItem = NavAllTasks;
             ApplyLocalizedUi();
 
             SnoozeService.SnoozeChanged += SnoozeService_SnoozeChanged;
@@ -96,10 +96,32 @@ namespace FluentTaskScheduler
             DispatcherQueue?.TryEnqueue(() => ShowSnoozeDialog());
         }
 
+        private void SnoozeToolbarButton_Click(object sender, RoutedEventArgs e) => ShowSnoozeDialog();
+
+        private void StatusFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (StatusFilterBox.SelectedItem is ComboBoxItem item)
+                ViewModel.StatusFilter = item.Tag?.ToString() ?? "all";
+        }
+
         private void UpdateSnoozeBanner()
         {
             bool active = SnoozeService.IsActive;
             SnoozeBanner.IsOpen = active;
+
+            // Toolbar button doubles as the snooze state indicator.
+            SnoozeToolbarText.Text = active
+                ? L("Snooze.Toolbar.Active", "Snoozed")
+                : L("Snooze.Toolbar.Idle", "Snooze All");
+            // Pause glyph while running normally, Play glyph while snoozed (clicking it resumes).
+            SnoozeToolbarIcon.Glyph = active ? "" : "";
+            ToolTipService.SetToolTip(SnoozeToolbarButton, active
+                ? SnoozeService.StatusText
+                : L("Snooze.Menu.SnoozeAll", "Snooze All Tasks..."));
+
+            // A snoozed-only view must refresh when the suspended set changes.
+            if (ViewModel.StatusFilter == "snoozed") ViewModel.ApplyFilters();
+
             if (!active) return;
 
             SnoozeBanner.Title = SnoozeService.StatusText;
@@ -234,15 +256,18 @@ namespace FluentTaskScheduler
         {
             NavDashboard.Content = L("Main.Nav.Dashboard", "Dashboard");
             NavQuickActions.Content = L("Main.Nav.QuickActions", "Quick Actions");
-            NavScriptLibrary.Content = L("Main.Nav.ScriptLibrary", "Script Library");
-            NavTemplates.Content = L("Main.Nav.Templates", "Task Templates");
-            NavSnooze.Content = L("Main.Nav.Snooze", "Snooze All Tasks");
+            NavScriptLibrary.Content = L("Main.Nav.Library", "Library");
             NavAdd.Content = L("Main.Nav.NewTask", "New Task");
             NavAllTasks.Content = L("Main.Nav.AllTasks", "All Tasks");
-            NavRunning.Content = L("Main.Nav.Running", "Running");
-            NavEnabled.Content = L("Main.Nav.Enabled", "Enabled");
-            NavDisabled.Content = L("Main.Nav.Disabled", "Disabled");
             NavSettings.Content = L("Main.Nav.Settings", "Settings");
+
+            // Toolbar status filter
+            StatusFilterAll.Content = L("Main.Status.All", "All statuses");
+            StatusFilterRunning.Content = L("Main.Status.Running", "Running");
+            StatusFilterEnabled.Content = L("Main.Status.Enabled", "Enabled");
+            StatusFilterDisabled.Content = L("Main.Status.Disabled", "Disabled");
+            StatusFilterSnoozed.Content = L("Main.Status.Snoozed", "Snoozed");
+            UpdateSnoozeBanner();
 
             RefreshButton.Content = L("Main.Toolbar.Refresh", "Refresh");
             ImportTaskButton.Content = L("Main.Toolbar.ImportTask", "Import Task");
@@ -270,7 +295,37 @@ namespace FluentTaskScheduler
             AdminDragWarning.Title = L("Main.AdminDragWarning.Title", "Drag & Drop Restricted");
             AdminDragWarning.Message = L("Main.AdminDragWarning.Message", "Windows does not support drag-and-drop operations when the app is running as Administrator.");
 
+            SearchBox.PlaceholderText = L("SearchBox.PlaceholderText", "Search tasks...");
+
             // --- Edit/Add Dialog ---
+            // These used to come from x:Uid, which resolves against the Windows display language
+            // instead of the app's language picker - hence German text in an English app.
+            DlgTitleText.Text = L("DialogTitle.Text", "Add or edit task");
+            DlgTriggersTitle.Text = L("TriggerTitle.Text", "Triggers");
+            DlgActionsTitle.Text = L("ActionTitle.Text", "Actions");
+            DlgRepetitionTitle.Text = L("RepetitionSectionTitle.Text", "Repetition");
+            DlgRepeatEveryLabel.Text = L("RepetitionIntervalText.Text", "Repeat task every");
+            DlgRepeatNone.Content = L("RepetitionNone.Content", "(No repetition)");
+            DlgDurationLabel.Text = L("RepetitionDurationText.Text", "For a duration of");
+            DlgRepeatIndefinitely.Content = L("RepetitionIndefinitely.Content", "Indefinitely");
+            DlgConditionsTitle.Text = L("ConditionsTitle.Text", "Conditions");
+            DlgStartOnlyIfLabel.Text = L("ConditionStartOnlyIf.Text", "Start the task only if:");
+            DlgIdleForLabel.Text = L("ConditionIdleFor.Text", "Idle for:");
+            DlgSpecificNetworkLabel.Text = L("ConditionSpecificNetwork.Text", "Specific network:");
+            DlgAnyNetworkItem.Content = L("ConditionAnyNetwork.Content", "Any network");
+            DlgSettingsTitle.Text = L("SettingsTitle.Text", "Settings");
+
+            EditTaskOnlyIfIdle.Content = L("ConditionIdle.Content", "Computer is idle");
+            EditTaskStopOnIdleEnd.Content = L("ConditionStopOnIdleEnd.Content", "Stop when idle ends");
+            EditTaskOnlyIfAC.Content = L("ConditionAC.Content", "Computer is on AC power");
+            EditTaskStopBatterySwitch.Content = L("ConditionStopBatterySwitch.Content", "Stop if switching to battery power");
+            EditTaskOnBattery.Content = L("ConditionOnBattery.Content", "Computer is on battery power");
+            EditTaskOnlyIfNetwork.Content = L("ConditionNetwork.Content", "Network is available");
+            EditTaskWakeToRun.Content = L("ConditionWake.Content", "Wake the computer to run this task");
+            EditTaskRunIfMissed.Content = L("RunIfMissed.Content", "Run task as soon as possible after a scheduled start is missed");
+            EditTaskRestartOnFailure.Content = L("RestartOnFailure.Content", "If the task fails, restart every:");
+            BrowseActionButton.Content = L("BrowseButton.Content", "Browse...");
+
             DlgTaskNameLabel.Text = L("Dialog.TaskName", "Task Name");
             DlgDescLabel.Text = L("Dialog.Description", "Description");
             DlgAuthorLabel.Text = L("Dialog.Author", "Author");
@@ -469,8 +524,7 @@ namespace FluentTaskScheduler
                 {
                     "Dashboard" => L("Main.Header.Dashboard", "Dashboard"),
                     "QuickActions" => L("Main.Header.QuickActions", "Quick Actions"),
-                    "ScriptLibrary" => L("Main.Header.ScriptLibrary", "Script Library"),
-                    "Templates" => L("Main.Header.Templates", "Task Templates"),
+                    "ScriptLibrary" => L("Main.Header.Library", "Library"),
                     "ScriptEditor" => L("Main.Header.ScriptEditor", "Script Editor"),
                     "settings" => L("Main.Header.Settings", "Settings"),
                     _ => L("Main.Header.ScheduledTasks", "Scheduled Tasks")
@@ -882,17 +936,9 @@ namespace FluentTaskScheduler
                     ContentFrame.Navigate(typeof(DashboardPage));
                     FolderTreeView.SelectedItem = null;
                 }
-                else if (tag == "Templates")
-                {
-                    NavView.Header = L("Main.Header.Templates", "Task Templates");
-                    TasksViewGrid.Visibility = Visibility.Collapsed;
-                    ContentFrame.Visibility = Visibility.Visible;
-                    ContentFrame.Navigate(typeof(TaskTemplatesPage), this);
-                    FolderTreeView.SelectedItem = null;
-                }
                 else if (tag == "ScriptLibrary")
                 {
-                    NavView.Header = L("Main.Header.ScriptLibrary", "Script Library");
+                    NavView.Header = L("Main.Header.Library", "Library");
                     TasksViewGrid.Visibility = Visibility.Collapsed;
                     ContentFrame.Visibility = Visibility.Visible;
                     ContentFrame.Navigate(typeof(ScriptLibraryPage), this);
@@ -932,16 +978,9 @@ namespace FluentTaskScheduler
 
         private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
         {
-            if (args.InvokedItemContainer is not NavigationViewItem item) return;
-
-            switch (item.Tag?.ToString())
+            if (args.InvokedItemContainer is NavigationViewItem item && item.Tag?.ToString() == "Add")
             {
-                case "Add":
-                    NewTaskButton_Click(sender, new RoutedEventArgs());
-                    break;
-                case "Snooze":
-                    ShowSnoozeDialog();
-                    break;
+                NewTaskButton_Click(sender, new RoutedEventArgs());
             }
         }
 
@@ -1201,7 +1240,8 @@ namespace FluentTaskScheduler
                     {
                         sb.AppendLine($"\"{h.Time}\",{h.EventId},\"{h.Result}\",\"{h.User}\",{h.ExitCode},\"{h.Message?.Replace("\"", "\"\"") ?? ""}\"");
                     }
-                    System.IO.File.WriteAllText(file.Path, sb.ToString());
+                    // UTF-8 *with* BOM so Excel and PowerShell don't mangle non-ASCII names.
+                    System.IO.File.WriteAllText(file.Path, sb.ToString(), new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
                 }
                 catch (Exception ex) { await ShowErrorDialog(ex.Message); }
             }
@@ -2358,7 +2398,7 @@ namespace FluentTaskScheduler
                     {
                         _currentFolderPath = "\\";
                         ViewModel.SetFilter("all");
-                        NavView.SelectedItem = NavView.FooterMenuItems[0];
+                        NavView.SelectedItem = NavAllTasks;
                     }
                 } 
                 catch (Exception ex) 
@@ -2387,7 +2427,7 @@ namespace FluentTaskScheduler
                     ViewModel.TaskService.DeleteFolder(path); 
                     LoadFolderStructure(); 
                     ViewModel.SetFilter("all"); 
-                    NavView.SelectedItem = NavView.FooterMenuItems[0]; 
+                    NavView.SelectedItem = NavAllTasks; 
                 } 
                 catch (Exception ex) 
                 { 

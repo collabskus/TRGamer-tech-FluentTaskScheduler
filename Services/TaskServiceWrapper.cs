@@ -823,17 +823,17 @@ namespace FluentTaskScheduler.Services
                             Time = record.TimeCreated?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Unknown",
                             Result = GetEventResult(record.Id),
                             ExitCode = GetEventExitCode(record),
-                            Message = record.FormatDescription() ?? record.LevelDisplayName ?? "",
+                            Message = BuildEventMessage(record),
                             EventId = record.Id,
                             ActivityId = record.ActivityId,
                             User = GetUserFromRecord(record),
                             TaskPath = taskPath,
                             TaskName = System.IO.Path.GetFileName(taskPath),
-                            Level = record.LevelDisplayName ?? "Information",
+                            Level = GetLevelName(record),
                             Keywords = record.KeywordsDisplayNames != null ? string.Join(", ", record.KeywordsDisplayNames) : "None",
                             Computer = record.MachineName ?? "Local",
-                            TaskCategory = record.TaskDisplayName ?? "None",
-                            OpCode = record.OpcodeDisplayName ?? "Info"
+                            TaskCategory = GetEventResult(record.Id),
+                            OpCode = GetLevelName(record)
                         });
                     }
                 }
@@ -954,16 +954,136 @@ namespace FluentTaskScheduler.Services
             return result;
         }
 
+        /// <summary>
+        /// Severity name derived from the numeric level rather than <c>LevelDisplayName</c>, which
+        /// Windows renders in the OS display language (e.g. "Informationen" on a German install).
+        /// </summary>
+        private string GetLevelName(EventRecord record)
+        {
+            byte? level = record.Level;
+            return level switch
+            {
+                1 => LocalizationService.GetString("EventLevel.Critical", "Critical"),
+                2 => LocalizationService.GetString("EventLevel.Error", "Error"),
+                3 => LocalizationService.GetString("EventLevel.Warning", "Warning"),
+                4 => LocalizationService.GetString("EventLevel.Information", "Information"),
+                5 => LocalizationService.GetString("EventLevel.Verbose", "Verbose"),
+                _ => LocalizationService.GetString("EventLevel.Information", "Information")
+            };
+        }
+
+        /// <summary>
+        /// Builds a description from the event's own data fields for the events we understand, so
+        /// the history reads in the app's language. Falls back to the Windows-rendered description
+        /// (OS language) only for events we have no template for.
+        /// </summary>
+        private string BuildEventMessage(EventRecord record)
+        {
+            try
+            {
+                var data = ReadEventData(record);
+                data.TryGetValue("TaskName", out var taskName);
+                data.TryGetValue("ActionName", out var actionName);
+                data.TryGetValue("UserContext", out var userContext);
+                data.TryGetValue("ResultCode", out var resultCode);
+
+                string name = taskName ?? "";
+                string L(string key, string fallback) => LocalizationService.GetString(key, fallback);
+
+                switch (record.Id)
+                {
+                    case 100:
+                        return string.Format(L("EventMsg.100", "Task Scheduler started an instance of task \"{0}\" for user \"{1}\"."), name, userContext ?? "");
+                    case 102:
+                        return string.Format(L("EventMsg.102", "Task Scheduler successfully finished task \"{0}\"."), name);
+                    case 103:
+                        return string.Format(L("EventMsg.103", "Task Scheduler failed to start an instance of task \"{0}\" (error {1})."), name, FormatCode(resultCode));
+                    case 106:
+                        return string.Format(L("EventMsg.106", "User \"{0}\" registered task \"{1}\"."), userContext ?? "", name);
+                    case 107:
+                        return string.Format(L("EventMsg.107", "Task Scheduler launched task \"{0}\" from a time trigger."), name);
+                    case 110:
+                        return string.Format(L("EventMsg.110", "Task Scheduler launched task \"{0}\" for user \"{1}\"."), name, userContext ?? "");
+                    case 111:
+                        return string.Format(L("EventMsg.111", "Task Scheduler terminated task \"{0}\" because it exceeded its configured time limit."), name);
+                    case 129:
+                        return string.Format(L("EventMsg.129", "Task Scheduler launched action \"{0}\" of task \"{1}\"."), actionName ?? "", name);
+                    case 200:
+                        return string.Format(L("EventMsg.200", "Task Scheduler launched action \"{0}\" of task \"{1}\"."), actionName ?? "", name);
+                    case 201:
+                        return string.Format(L("EventMsg.201", "Task Scheduler completed action \"{0}\" of task \"{1}\" with return code {2}."), actionName ?? "", name, FormatCode(resultCode));
+                    case 203:
+                        return string.Format(L("EventMsg.203", "Task Scheduler failed to launch action \"{0}\" of task \"{1}\" (error {2})."), actionName ?? "", name, FormatCode(resultCode));
+                    case 322:
+                        return string.Format(L("EventMsg.322", "Task Scheduler did not launch task \"{0}\" because an instance is already running."), name);
+                    case 108:
+                        return string.Format(L("EventMsg.108", "Task Scheduler failed to start task \"{0}\" (error {1})."), name, FormatCode(resultCode));
+                    case 118:
+                        return string.Format(L("EventMsg.118", "Task Scheduler launched task \"{0}\" from a boot trigger."), name);
+                    case 119:
+                        return string.Format(L("EventMsg.119", "Task Scheduler launched task \"{0}\" from a logon trigger."), name);
+                    case 140:
+                        return string.Format(L("EventMsg.140", "User \"{0}\" updated the definition of task \"{1}\"."), userContext ?? "", name);
+                    case 141:
+                        return string.Format(L("EventMsg.141", "User \"{0}\" deleted task \"{1}\"."), userContext ?? "", name);
+                    case 142:
+                        return string.Format(L("EventMsg.142", "User \"{0}\" disabled task \"{1}\"."), userContext ?? "", name);
+                    case 153:
+                        return string.Format(L("EventMsg.153", "Task Scheduler did not start task \"{0}\" because the schedule was missed. Enable \"Run task as soon as possible after a scheduled start is missed\" to catch up."), name);
+                    case 202:
+                        return string.Format(L("EventMsg.202", "Action \"{0}\" of task \"{1}\" failed with return code {2}."), actionName ?? "", name, FormatCode(resultCode));
+                    case 329:
+                        return string.Format(L("EventMsg.329", "Task Scheduler stopped task \"{0}\" because it exceeded its configured time limit."), name);
+                    case 331:
+                        return string.Format(L("EventMsg.331", "Task Scheduler stopped task \"{0}\" because the computer switched to battery power."), name);
+                    case 332:
+                        return string.Format(L("EventMsg.332", "Task Scheduler did not launch task \"{0}\" because the required conditions (idle, network or power) were not met."), name);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Warn($"Could not build a localized message for event {record.Id}: {ex.Message}");
+            }
+
+            // Unknown event: Windows renders this in the OS display language.
+            try { return record.FormatDescription() ?? ""; }
+            catch { return ""; }
+        }
+
+        /// <summary>Renders a raw result code the way Task Scheduler does: 0, otherwise hex.</summary>
+        private static string FormatCode(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "-";
+            if (!long.TryParse(raw, out long value)) return raw;
+            return value == 0 ? "0" : "0x" + ((uint)value).ToString("X8");
+        }
+
         private string GetEventResult(int eventId) => eventId switch
         {
-            100 => "Task Started",
-            102 => "Task Completed",
-            103 => "Task Failed",
-            107 => "Task Triggered",
-            110 => "Task Registered",
-            129 => "Action Started",
-            201 => "Action Completed",
-            _ => $"Event {eventId}"
+            100 => LocalizationService.GetString("EventResult.100", "Task Started"),
+            102 => LocalizationService.GetString("EventResult.102", "Task Completed"),
+            103 => LocalizationService.GetString("EventResult.103", "Task Failed"),
+            106 => LocalizationService.GetString("EventResult.106", "Task Registered"),
+            108 => LocalizationService.GetString("EventResult.108", "Start Failed"),
+            118 => LocalizationService.GetString("EventResult.118", "Boot Trigger"),
+            119 => LocalizationService.GetString("EventResult.119", "Logon Trigger"),
+            140 => LocalizationService.GetString("EventResult.140", "Task Updated"),
+            141 => LocalizationService.GetString("EventResult.141", "Task Deleted"),
+            142 => LocalizationService.GetString("EventResult.142", "Task Disabled"),
+            153 => LocalizationService.GetString("EventResult.153", "Schedule Missed"),
+            202 => LocalizationService.GetString("EventResult.202", "Action Failed"),
+            329 => LocalizationService.GetString("EventResult.329", "Stopped (time limit)"),
+            331 => LocalizationService.GetString("EventResult.331", "Stopped (on battery)"),
+            332 => LocalizationService.GetString("EventResult.332", "Skipped (conditions not met)"),
+            107 => LocalizationService.GetString("EventResult.107", "Task Triggered"),
+            110 => LocalizationService.GetString("EventResult.110", "Task Launched"),
+            111 => LocalizationService.GetString("EventResult.111", "Task Terminated"),
+            129 => LocalizationService.GetString("EventResult.129", "Action Started"),
+            200 => LocalizationService.GetString("EventResult.200", "Action Started"),
+            201 => LocalizationService.GetString("EventResult.201", "Action Completed"),
+            203 => LocalizationService.GetString("EventResult.203", "Action Launch Failed"),
+            322 => LocalizationService.GetString("EventResult.322", "Launch Skipped (already running)"),
+            _ => string.Format(LocalizationService.GetString("EventResult.Unknown", "Event {0}"), eventId)
         };
 
         private string GetEventExitCode(EventRecord record)

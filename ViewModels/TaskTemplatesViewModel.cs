@@ -52,14 +52,34 @@ namespace FluentTaskScheduler.ViewModels
 
     public class TaskTemplatesViewModel
     {
+        private List<TaskTemplate> _all = new();
+        private string _currentFilter = "";
+
+        /// <summary>The groups matching the current search filter — this is what the UI binds to.</summary>
         public ObservableCollection<TaskTemplateGroup> Groups { get; } = new();
 
-        /// <summary>Rebuilds the library. Called on load and whenever the language changes.</summary>
+        /// <summary>Reloads the full template library and re-applies the current filter. Called on load and whenever the language changes.</summary>
         public void Load()
         {
-            Groups.Clear();
+            _all = TaskTemplateLibrary.GetAll();
+            ApplyFilter(_currentFilter);
+        }
 
-            var all = TaskTemplateLibrary.GetAll();
+        /// <summary>Filters by name or description; groups with no remaining matches are hidden entirely. Empty/null clears the filter.</summary>
+        public void ApplyFilter(string? query)
+        {
+            _currentFilter = query ?? "";
+
+            IEnumerable<TaskTemplate> source = _all;
+            if (!string.IsNullOrWhiteSpace(_currentFilter))
+            {
+                source = _all.Where(t =>
+                    (t.Name != null && t.Name.Contains(_currentFilter, StringComparison.OrdinalIgnoreCase)) ||
+                    (t.Description != null && t.Description.Contains(_currentFilter, StringComparison.OrdinalIgnoreCase)));
+            }
+            var filtered = source.ToList();
+
+            Groups.Clear();
             foreach (var key in TaskTemplateLibrary.Groups)
             {
                 var group = new TaskTemplateGroup
@@ -68,7 +88,7 @@ namespace FluentTaskScheduler.ViewModels
                     DisplayName = TaskTemplateLibrary.GetGroupDisplayName(key)
                 };
 
-                foreach (var template in all.Where(t => string.Equals(t.Group, key, StringComparison.Ordinal)))
+                foreach (var template in filtered.Where(t => string.Equals(t.Group, key, StringComparison.Ordinal)))
                     group.Templates.Add(new TaskTemplateCard { Template = template });
 
                 if (group.Templates.Count > 0) Groups.Add(group);

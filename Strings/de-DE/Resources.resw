@@ -316,6 +316,7 @@ Jetzt App neustarten?</value></data>
   <data name="Settings.About.Onboard.Title" xml:space="preserve"><value>Einführung</value></data>
   <data name="Settings.About.Onboard.Desc" xml:space="preserve"><value>Die Willkommensführung vom ersten Start erneut abspielen.</value></data>
   <data name="Settings.About.ViewAgain" xml:space="preserve"><value>Erneut ansehen</value></data>
+  <data name="Settings.About.VersionFormat" xml:space="preserve"><value>Version {0}</value></data>
   <data name="Dashboard.AllTags" xml:space="preserve"><value>Alle Tags</value></data>
   <data name="Dashboard.AllCategories" xml:space="preserve"><value>Alle Kategorien</value></data>
   <data name="Dashboard.Today" xml:space="preserve"><value>Heute</value></data>

@@ -118,7 +118,50 @@ namespace FluentTaskScheduler.ViewModels
 
         private bool IsGlobalFilter(string tag)
         {
-            return tag == "all" || tag == "running" || tag == "enabled" || tag == "disabled";
+            return tag == "all";
+        }
+
+        private string _statusFilter = "all";
+
+        /// <summary>
+        /// Status shown in the toolbar dropdown: all / running / enabled / disabled / snoozed.
+        /// This is independent of the folder selection, so a folder can be narrowed by status.
+        /// </summary>
+        public string StatusFilter
+        {
+            get => _statusFilter;
+            set
+            {
+                if (_statusFilter == value) return;
+                _statusFilter = string.IsNullOrEmpty(value) ? "all" : value;
+                OnPropertyChanged();
+                ApplyFilters();
+            }
+        }
+
+        /// <summary>Applies the toolbar status dropdown on top of the folder/search filters.</summary>
+        private IEnumerable<ScheduledTaskModel> ApplyStatusFilter(IEnumerable<ScheduledTaskModel> query)
+        {
+            switch (_statusFilter)
+            {
+                case "running":
+                    return query.Where(t => t.State == "Running");
+                case "enabled":
+                    return query.Where(t => t.IsEnabled);
+                case "disabled":
+                    return query.Where(t => !t.IsEnabled);
+                case "snoozed":
+                    // Only tasks this app suspended for the active global snooze — an empty result
+                    // simply means nothing is currently suspended.
+                    var suspended = new HashSet<string>(
+                        Services.SettingsService.SnoozeDisabledTaskPaths ?? new List<string>(),
+                        StringComparer.OrdinalIgnoreCase);
+                    return suspended.Count == 0
+                        ? Enumerable.Empty<ScheduledTaskModel>()
+                        : query.Where(t => suspended.Contains(t.Path));
+                default:
+                    return query;
+            }
         }
 
         /// <summary>Cycles sort: same column toggles Asc/Desc, new column defaults to Asc.</summary>
@@ -159,10 +202,9 @@ namespace FluentTaskScheduler.ViewModels
                 );
             }
 
-            // Tag/Folder Filter
+            // Folder filter — "all" spans every folder, anything else pins to one folder
             if (!IsGlobalFilter(_filterTag))
             {
-                // Folder logic
                 query = query.Where(t =>
                 {
                     var taskDir = System.IO.Path.GetDirectoryName(t.Path);
@@ -170,13 +212,9 @@ namespace FluentTaskScheduler.ViewModels
                     return taskDir.Equals(_currentFolderPath, StringComparison.OrdinalIgnoreCase);
                 });
             }
-            else
-            {
-                // Status Logic
-                if (_filterTag == "running") query = query.Where(t => t.State == "Running");
-                else if (_filterTag == "enabled") query = query.Where(t => t.IsEnabled);
-                else if (_filterTag == "disabled") query = query.Where(t => !t.IsEnabled);
-            }
+
+            // Toolbar status dropdown
+            query = ApplyStatusFilter(query);
 
             var results = SortColumn switch
             {
