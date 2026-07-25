@@ -748,7 +748,7 @@
                         <CheckBox x:Name="EditTaskRandomDelay" Content="Delay task for up to (random delay):" Click="EditTaskRandomDelay_Click"/>
                         <FontIcon Glyph="&#xE946;" FontSize="12" VerticalAlignment="Center" Opacity="0.6" Tapped="InfoIcon_Tapped"
                                   ToolTipService.ToolTip="Adds a random wait (between 0 and the specified value) before the task actually starts. Useful to stagger tasks that trigger at the same time across many machines."/>
-                        <TextBox x:Name="EditTaskRandomDelayVal" PlaceholderText="e.g. 1 hour" Width="120" Tag="ph"/>
+                        <TextBox x:Name="EditTaskRandomDelayVal" PlaceholderText="e.g. 1 hour" Width="120" Tag="ph" TextChanged="EditTaskRandomDelayVal_TextChanged"/>
                         <TextBlock x:Name="DlgDelayHint" Text="(e.g. 30s, 1m, 1h)" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
                     </StackPanel>
 
@@ -1205,8 +1205,11 @@
 
                 <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
 
-                <CheckBox x:Name="SnoozeSuspendTriggers"/>
+                <CheckBox x:Name="SnoozeSuspendTriggers" Checked="SnoozeSuspendTriggers_Changed" Unchecked="SnoozeSuspendTriggers_Changed"/>
                 <TextBlock x:Name="SnoozeSuspendHint" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" TextWrapping="Wrap" Margin="28,-8,0,0"/>
+
+                <CheckBox x:Name="SnoozeIncludeMicrosoftTasks" Margin="28,4,0,0" Visibility="Collapsed" Checked="SnoozeSuspendTriggers_Changed" Unchecked="SnoozeSuspendTriggers_Changed"/>
+                <InfoBar x:Name="SnoozeMicrosoftWarning" IsOpen="False" Severity="Warning" IsClosable="False" Margin="28,-8,0,0"/>
 
                 <InfoBar x:Name="SnoozeDialogError" IsOpen="False" Severity="Error" IsClosable="True"/>
             </StackPanel>

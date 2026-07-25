@@ -384,7 +384,7 @@ namespace FluentTaskScheduler.Services
             var trigger = new TaskTriggerModel
             {
                 TriggerType = template.TriggerType,
-                ScheduleInfo = start.ToString("yyyy-MM-dd HH:mm:ss"),
+                ScheduleInfo = start.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
                 DailyInterval = template.DailyInterval,
                 WeeklyInterval = template.WeeklyInterval,
                 WeeklyDays = new List<string>(template.WeeklyDays)

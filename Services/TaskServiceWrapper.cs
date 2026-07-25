@@ -27,7 +27,23 @@ namespace FluentTaskScheduler.Services
         }
     }
 
-    public class TaskServiceWrapper
+    /// <summary>
+    /// The subset of <see cref="TaskServiceWrapper"/> that other services depend on, extracted so
+    /// SnoozeService/TaskPipelineService logic can be unit tested against a fake implementation
+    /// without a real Task Scheduler.
+    /// </summary>
+    public interface ITaskServiceWrapper
+    {
+        List<ScheduledTaskModel> GetAllTasks(string? folderPath = null, bool recursive = true);
+        bool TaskExists(string path);
+        void EnableTask(string path);
+        void DisableTask(string path);
+        void SetTaskEnabled(string path, bool enabled);
+        void RunTask(string path);
+        void RunTask(string path, string origin);
+    }
+
+    public class TaskServiceWrapper : ITaskServiceWrapper
     {
         public List<ScheduledTaskModel> GetAllTasks(string? folderPath = null, bool recursive = true)
         {
@@ -119,6 +135,7 @@ namespace FluentTaskScheduler.Services
             ParseMetadata(model);
 
             // Map Actions
+            var unsupported = new List<string>();
             if (def.Actions != null)
             {
                 foreach (var action in def.Actions)
@@ -132,6 +149,13 @@ namespace FluentTaskScheduler.Services
                             WorkingDirectory = execAction.WorkingDirectory
                         });
                     }
+                    else
+                    {
+                        // Email/COM/show-message actions have no model representation. Round-tripping
+                        // this task through the editor would silently drop them, so it's flagged as
+                        // unsupported instead (see HasUnsupportedElements).
+                        unsupported.Add($"{action.ActionType} action");
+                    }
                 }
             }
 
@@ -140,10 +164,21 @@ namespace FluentTaskScheduler.Services
             {
                 foreach (var trigger in def.Triggers)
                 {
-                    model.TriggersList.Add(MapTriggerToModel(trigger));
+                    var mapped = MapTriggerToModel(trigger);
+                    if (mapped.TriggerType == UnsupportedTriggerType)
+                    {
+                        unsupported.Add($"{trigger.GetType().Name} trigger");
+                    }
+                    model.TriggersList.Add(mapped);
                 }
                 // Update display string using wrapper descriptors
                 model.Triggers = string.Join(", ", model.TriggersList.Select(t => t.Descriptor));
+            }
+
+            if (unsupported.Count > 0)
+            {
+                model.HasUnsupportedElements = true;
+                model.UnsupportedElementsDescription = string.Join(", ", unsupported);
             }
 
             // Map Settings
@@ -249,6 +284,12 @@ namespace FluentTaskScheduler.Services
                 }
                 catch { }
             }
+        }
+
+        public bool TaskExists(string path)
+        {
+            using var ts = new TaskService();
+            return ts.GetTask(path) != null;
         }
 
         public void EnableTask(string path) => SetTaskEnabled(path, true);
@@ -456,19 +497,19 @@ namespace FluentTaskScheduler.Services
                 ConfigureTrigger(td, triggerModel, model);
             }
 
-            if (model.Actions.Count > 0)
+            foreach (var act in model.Actions)
             {
-                foreach (var act in model.Actions)
+                if (!string.IsNullOrWhiteSpace(act.Command))
                 {
-                    if (!string.IsNullOrWhiteSpace(act.Command))
-                    {
-                        td.Actions.Add(new ExecAction(act.Command, act.Arguments, act.WorkingDirectory));
-                    }
+                    td.Actions.Add(new ExecAction(act.Command, act.Arguments, act.WorkingDirectory));
                 }
             }
-            else
+
+            if (td.Actions.Count == 0)
             {
-                td.Actions.Add(new ExecAction("notepad.exe"));
+                // A task with no actions does nothing when it runs — refuse to save it instead of
+                // silently substituting a notepad.exe placeholder the user never asked for.
+                throw new InvalidOperationException("This task has no actions. Add at least one action before saving.");
             }
 
             // Apply Settings
@@ -557,10 +598,26 @@ namespace FluentTaskScheduler.Services
 
         private void ConfigureTrigger(TaskDefinition td, TaskTriggerModel triggerModel, ScheduledTaskModel model)
         {
-            DateTime startTime = DateTime.Today.AddHours(9);
-            if (!string.IsNullOrWhiteSpace(triggerModel.ScheduleInfo) && DateTime.TryParse(triggerModel.ScheduleInfo, out var parsedStart))
+            if (triggerModel.TriggerType == UnsupportedTriggerType)
             {
-                startTime = parsedStart;
+                // Should never be reachable — the editor refuses to open tasks containing one of
+                // these (see ScheduledTaskModel.HasUnsupportedElements) — but guard against saving
+                // over one anyway rather than silently turning it into a daily 9 AM trigger.
+                throw new InvalidOperationException("This trigger type is not supported by the editor and cannot be saved.");
+            }
+
+            DateTime startTime = DateTime.Today.AddHours(9);
+            if (!string.IsNullOrWhiteSpace(triggerModel.ScheduleInfo))
+            {
+                var parsedStart = DurationUtil.TryParseScheduleInfo(triggerModel.ScheduleInfo);
+                if (parsedStart.HasValue)
+                {
+                    startTime = parsedStart.Value;
+                }
+                else
+                {
+                    throw new FormatException($"Could not parse trigger start time '{triggerModel.ScheduleInfo}'. Expected format: {DurationUtil.ScheduleInfoFormat}.");
+                }
             }
 
             Trigger t = triggerModel.TriggerType switch
@@ -594,12 +651,15 @@ namespace FluentTaskScheduler.Services
                     {
                         t.Repetition.Duration = System.Xml.XmlConvert.ToTimeSpan(triggerModel.RepetitionDuration);
                     }
-                    if (!string.IsNullOrWhiteSpace(triggerModel.RandomDelay))
-                    {
-                        try { ((dynamic)t).RandomDelay = System.Xml.XmlConvert.ToTimeSpan(triggerModel.RandomDelay); } catch { }
-                    }
                 }
                 catch { }
+            }
+
+            // RandomDelay applies independently of repetition — must not be nested inside the
+            // RepetitionInterval check above, or a delay configured without repetition is dropped.
+            if (!string.IsNullOrWhiteSpace(triggerModel.RandomDelay))
+            {
+                try { ((dynamic)t).RandomDelay = System.Xml.XmlConvert.ToTimeSpan(triggerModel.RandomDelay); } catch { }
             }
 
             td.Triggers.Add(t);
@@ -630,13 +690,17 @@ namespace FluentTaskScheduler.Services
         {
             var et = new EventTrigger();
             string log = string.IsNullOrWhiteSpace(model.EventLog) ? "Application" : model.EventLog;
+            if (log.Any(c => char.IsControl(c)))
+                throw new ArgumentException("Event log name contains invalid control characters.", nameof(model.EventLog));
+            if (!string.IsNullOrWhiteSpace(model.EventSource) && model.EventSource.Any(c => char.IsControl(c)))
+                throw new ArgumentException("Event source contains invalid control characters.", nameof(model.EventSource));
             string query = "*";
 
             if (!string.IsNullOrWhiteSpace(model.EventSource) || model.EventId.HasValue)
             {
                 string conditions = "";
                 if (!string.IsNullOrWhiteSpace(model.EventSource))
-                    conditions += $"Provider[@Name='{model.EventSource}']";
+                    conditions += $"Provider[@Name={ToXPathLiteral(model.EventSource)}]";
 
                 if (model.EventId.HasValue)
                 {
@@ -645,8 +709,37 @@ namespace FluentTaskScheduler.Services
                 }
                 query = $"*[System[{conditions}]]";
             }
-            et.Subscription = $"<QueryList><Query Id=\"0\" Path=\"{log}\"><Select Path=\"{log}\">{query}</Select></Query></QueryList>";
+
+            // `query` is an XPath expression that itself becomes XML element content below, so it
+            // needs XML-escaping on top of the XPath-literal escaping already applied above.
+            string logXml = System.Security.SecurityElement.Escape(log);
+            string queryXml = System.Security.SecurityElement.Escape(query);
+            et.Subscription = $"<QueryList><Query Id=\"0\" Path=\"{logXml}\"><Select Path=\"{logXml}\">{queryXml}</Select></Query></QueryList>";
             return et;
+        }
+
+        /// <summary>
+        /// Encodes a string as a safe XPath 1.0 string literal. XPath 1.0 has no escape sequence for
+        /// quote characters inside a literal, so a value containing both ' and " has to be split
+        /// across a concat() call.
+        /// </summary>
+        internal static string ToXPathLiteral(string value)
+        {
+            value ??= "";
+            if (!value.Contains('\''))
+                return $"'{value}'";
+            if (!value.Contains('"'))
+                return $"\"{value}\"";
+
+            var parts = value.Split('\'');
+            var sb = new System.Text.StringBuilder("concat(");
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (i > 0) sb.Append(", \"'\", ");
+                sb.Append('\'').Append(parts[i]).Append('\'');
+            }
+            sb.Append(')');
+            return sb.ToString();
         }
 
         private Trigger CreateSessionTrigger(TaskTriggerModel triggerModel, ScheduledTaskModel model)
@@ -809,7 +902,7 @@ namespace FluentTaskScheduler.Services
             var history = new List<TaskHistoryEntry>();
             try
             {
-                string query = $"*[System/Provider[@Name='Microsoft-Windows-TaskScheduler'] and EventData[Data[@Name='TaskName']='{taskPath}']]";
+                string query = $"*[System/Provider[@Name='Microsoft-Windows-TaskScheduler'] and EventData[Data[@Name='TaskName']={ToXPathLiteral(taskPath)}]]";
                 EventLogQuery eventsQuery = new EventLogQuery("Microsoft-Windows-TaskScheduler/Operational", PathType.LogName, query);
                 using EventLogReader logReader = new EventLogReader(eventsQuery);
 
@@ -1113,13 +1206,17 @@ namespace FluentTaskScheduler.Services
             catch { return record.UserId?.ToString() ?? ""; }
         }
 
+        /// <summary>Sentinel TriggerType used when a trigger's real type has no model representation
+        /// (e.g. RegistrationTrigger, custom XML triggers) — must never be saved back to Task Scheduler.</summary>
+        internal const string UnsupportedTriggerType = "__Unsupported";
+
         private TaskTriggerModel MapTriggerToModel(Trigger trigger)
         {
             var model = new TaskTriggerModel();
             
             // Basic Start/End
             if (trigger.StartBoundary != DateTime.MinValue)
-                model.ScheduleInfo = trigger.StartBoundary.ToString("yyyy-MM-dd HH:mm:ss");
+                model.ScheduleInfo = DurationUtil.FormatScheduleInfo(trigger.StartBoundary);
             if (trigger.EndBoundary != DateTime.MaxValue)
                 model.ExpirationDate = trigger.EndBoundary;
 
@@ -1128,12 +1225,17 @@ namespace FluentTaskScheduler.Services
             {
                 try { model.RepetitionInterval = System.Xml.XmlConvert.ToString(trigger.Repetition.Interval); } catch {}
                 try { model.RepetitionDuration = System.Xml.XmlConvert.ToString(trigger.Repetition.Duration); } catch {}
-                try { 
-                    var dTrigger = (dynamic)trigger;
-                    if (dTrigger.RandomDelay != TimeSpan.Zero)
-                        model.RandomDelay = System.Xml.XmlConvert.ToString(dTrigger.RandomDelay);
-                } catch {}
             }
+
+            // RandomDelay is a property of most trigger types independent of repetition — read it
+            // unconditionally so a delay configured without repetition isn't silently dropped.
+            try
+            {
+                var dTrigger = (dynamic)trigger;
+                if (dTrigger.RandomDelay is TimeSpan rd && rd != TimeSpan.Zero)
+                    model.RandomDelay = System.Xml.XmlConvert.ToString(rd);
+            }
+            catch { }
 
             switch (trigger)
             {
@@ -1182,6 +1284,12 @@ namespace FluentTaskScheduler.Services
                     } catch {}
                     break;
                 case TimeTrigger: model.TriggerType = "Once"; break;
+                default:
+                    // RegistrationTrigger, custom/derived triggers, etc: no model representation.
+                    // Leaving TriggerType at its "Daily" default would silently convert this into a
+                    // daily 9 AM trigger on save, so mark it unsupported instead.
+                    model.TriggerType = UnsupportedTriggerType;
+                    break;
             }
             return model;
         }

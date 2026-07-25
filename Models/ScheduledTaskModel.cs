@@ -34,6 +34,15 @@ namespace FluentTaskScheduler.Models
 
         public string Name { get; set; } = "";
         public string Path { get; set; } = "";
+
+        /// <summary>
+        /// Set when the underlying task contains actions or triggers this app cannot faithfully
+        /// round-trip (e.g. email/COM/show-message actions, RegistrationTrigger, custom XML
+        /// triggers). Editing and saving such a task through the model would silently drop or
+        /// corrupt those elements, so the editor refuses to open it — see <see cref="UnsupportedElementsDescription"/>.
+        /// </summary>
+        public bool HasUnsupportedElements { get; set; }
+        public string UnsupportedElementsDescription { get; set; } = "";
         
         public string State 
         { 

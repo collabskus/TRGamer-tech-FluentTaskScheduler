@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.UI.Xaml;
 
 namespace FluentTaskScheduler.Services
@@ -41,6 +42,11 @@ namespace FluentTaskScheduler.Services
         public string SnoozeBootStamp { get; set; } = "";
         /// <summary>When true, starting a snooze also disables scheduled triggers via the Task Scheduler API.</summary>
         public bool SnoozeSuspendsScheduledTasks { get; set; } = false;
+        /// <summary>
+        /// When true, trigger suspension also touches tasks under \Microsoft\ (Defender, Windows
+        /// Update, maintenance, etc). Off by default — disabling those can break OS functionality.
+        /// </summary>
+        public bool SnoozeIncludeMicrosoftTasks { get; set; } = false;
         /// <summary>Tasks this app disabled when the current snooze started; re-enabled when it ends.</summary>
         public List<string> SnoozeDisabledTaskPaths { get; set; } = new();
 
@@ -55,6 +61,28 @@ namespace FluentTaskScheduler.Services
         private static string SettingsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FluentTaskScheduler");
         private static string SettingsPath = Path.Combine(SettingsFolder, "settings.json");
 
+        /// <summary>
+        /// Test-only hook: redirects storage to an isolated folder and resets in-memory state, so
+        /// unit tests never read or write the real user's settings.json.
+        /// </summary>
+        internal static void UseStorageForTests(string folder)
+        {
+            lock (_lock)
+            {
+                _debounceTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                SettingsFolder = folder;
+                SettingsPath = Path.Combine(SettingsFolder, "settings.json");
+                _settings = new AppSettings();
+            }
+        }
+
+        // Guards all reads/writes of _settings and the on-disk file: Save() is called from the UI
+        // thread, the snooze timer thread, and pipeline/reminder threads, so unguarded concurrent
+        // File.WriteAllText calls could interleave and corrupt settings.json.
+        private static readonly object _lock = new();
+        private static Timer? _debounceTimer;
+        private const int DebounceMilliseconds = 500;
+
         static SettingsService()
         {
             Load();
@@ -62,36 +90,76 @@ namespace FluentTaskScheduler.Services
 
         public static void Load()
         {
-            try
+            lock (_lock)
             {
-                if (File.Exists(SettingsPath))
+                try
                 {
-                    string json = File.ReadAllText(SettingsPath);
-                    _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    if (File.Exists(SettingsPath))
+                    {
+                        string json = File.ReadAllText(SettingsPath);
+                        _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                // Fallback to defaults on error
-                _settings = new AppSettings();
-                LogService.Error($"Failed to load settings from '{SettingsPath}', reverting to defaults.", ex);
+                catch (Exception ex)
+                {
+                    // Fallback to defaults on error
+                    _settings = new AppSettings();
+                    LogService.Error($"Failed to load settings from '{SettingsPath}', reverting to defaults.", ex);
+                }
             }
         }
 
+        /// <summary>
+        /// Schedules a write to disk after a short debounce window, coalescing bursts of property
+        /// changes (e.g. continuous window-resize events) into a single write.
+        /// </summary>
         private static void Save()
         {
-            try
+            lock (_lock)
             {
-                if (!Directory.Exists(SettingsFolder))
-                {
-                    Directory.CreateDirectory(SettingsFolder);
-                }
-                string json = JsonSerializer.Serialize(_settings);
-                File.WriteAllText(SettingsPath, json);
+                _debounceTimer ??= new Timer(_ => SaveImmediate(), null, Timeout.Infinite, Timeout.Infinite);
+                _debounceTimer.Change(DebounceMilliseconds, Timeout.Infinite);
             }
-            catch (Exception ex)
+        }
+
+        /// <summary>Forces any pending debounced save to happen immediately (e.g. before app exit).</summary>
+        public static void Flush()
+        {
+            lock (_lock)
             {
-                LogService.Error($"Failed to save settings to '{SettingsPath}'.", ex);
+                _debounceTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+            SaveImmediate();
+        }
+
+        private static void SaveImmediate()
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    if (!Directory.Exists(SettingsFolder))
+                    {
+                        Directory.CreateDirectory(SettingsFolder);
+                    }
+                    string json = JsonSerializer.Serialize(_settings);
+
+                    // Write-then-replace so a crash or concurrent read never observes a truncated file.
+                    string tempPath = SettingsPath + ".tmp";
+                    File.WriteAllText(tempPath, json);
+                    if (File.Exists(SettingsPath))
+                    {
+                        File.Replace(tempPath, SettingsPath, null);
+                    }
+                    else
+                    {
+                        File.Move(tempPath, SettingsPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogService.Error($"Failed to save settings to '{SettingsPath}'.", ex);
+                }
             }
         }
 
@@ -227,6 +295,17 @@ namespace FluentTaskScheduler.Services
             set { _settings.WindowHeight = value; Save(); }
         }
 
+        /// <summary>Sets width and height together as a single (debounced) settings write.</summary>
+        public static void SetWindowSize(int width, int height)
+        {
+            lock (_lock)
+            {
+                _settings.WindowWidth = width;
+                _settings.WindowHeight = height;
+            }
+            Save();
+        }
+
         public static string LastFolderPath
         {
             get => _settings.LastFolderPath;
@@ -307,6 +386,12 @@ namespace FluentTaskScheduler.Services
             set { _settings.SnoozeSuspendsScheduledTasks = value; Save(); }
         }
 
+        public static bool SnoozeIncludeMicrosoftTasks
+        {
+            get => _settings.SnoozeIncludeMicrosoftTasks;
+            set { _settings.SnoozeIncludeMicrosoftTasks = value; Save(); }
+        }
+
         public static List<string> SnoozeDisabledTaskPaths
         {
             get => _settings.SnoozeDisabledTaskPaths;
@@ -322,22 +407,33 @@ namespace FluentTaskScheduler.Services
         /// <summary>
         /// Writes several snooze fields in one go so a single Save() hits disk instead of one per property.
         /// </summary>
+        /// <summary>
+        /// Writes several snooze fields in one go and flushes immediately (not debounced) so that a
+        /// crash mid-sweep in <see cref="SnoozeService"/> can still recover the disabled-task list.
+        /// </summary>
         public static void SaveSnoozeState(bool isSnoozed, DateTime? untilUtc, bool untilReboot, string bootStamp, List<string> disabledPaths)
         {
-            _settings.IsSnoozed = isSnoozed;
-            _settings.SnoozeUntilUtc = untilUtc;
-            _settings.SnoozeUntilReboot = untilReboot;
-            _settings.SnoozeBootStamp = bootStamp ?? "";
-            _settings.SnoozeDisabledTaskPaths = disabledPaths ?? new List<string>();
-            Save();
+            lock (_lock)
+            {
+                _settings.IsSnoozed = isSnoozed;
+                _settings.SnoozeUntilUtc = untilUtc;
+                _settings.SnoozeUntilReboot = untilReboot;
+                _settings.SnoozeBootStamp = bootStamp ?? "";
+                _settings.SnoozeDisabledTaskPaths = disabledPaths ?? new List<string>();
+            }
+            SaveImmediate();
         }
 
         public static void ExportSettings(string targetPath)
         {
             try
             {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(_settings, options);
+                string json;
+                lock (_lock)
+                {
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    json = JsonSerializer.Serialize(_settings, options);
+                }
                 File.WriteAllText(targetPath, json);
                 LogService.Info($"Settings exported to {targetPath}");
             }
@@ -356,8 +452,11 @@ namespace FluentTaskScheduler.Services
                 var imported = JsonSerializer.Deserialize<AppSettings>(json);
                 if (imported != null)
                 {
-                    _settings = imported;
-                    Save();
+                    lock (_lock)
+                    {
+                        _settings = imported;
+                    }
+                    SaveImmediate();
                     LogService.Info($"Settings imported from {sourcePath}");
                 }
             }

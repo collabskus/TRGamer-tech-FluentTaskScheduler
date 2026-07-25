@@ -38,6 +38,15 @@ namespace FluentTaskScheduler.Services
         /// <summary>Raised whenever the snooze turns on, turns off, or its end time changes.</summary>
         public static event EventHandler? SnoozeChanged;
 
+        /// <summary>Factory for the task-service boundary, overridable in unit tests.</summary>
+        public static Func<ITaskServiceWrapper> TaskServiceFactory { get; set; } = () => new TaskServiceWrapper();
+
+        /// <summary>
+        /// Test-only hook: the most recently started background suspend/restore operation, so tests
+        /// can await deterministic completion instead of guessing with Thread.Sleep.
+        /// </summary>
+        internal static System.Threading.Tasks.Task? LastBackgroundOperation { get; private set; }
+
         static SnoozeService()
         {
             LoadSuppressed();
@@ -117,6 +126,18 @@ namespace FluentTaskScheduler.Services
                     LogService.Info("Stored global snooze had already expired at startup; clearing it.");
                     ClearSnoozeState();
                 }
+                else if (!SettingsService.IsSnoozed && SettingsService.SnoozeDisabledTaskPaths.Count > 0)
+                {
+                    // A previous restore was interrupted (crash/kill) before it finished clearing the
+                    // disabled-task list — finish restoring whatever is left, on a background thread.
+                    LogService.Warn("Found a leftover snooze-disabled task list from a previous run; resuming restore.");
+                    var leftover = new List<string>(SettingsService.SnoozeDisabledTaskPaths);
+                    LastBackgroundOperation = System.Threading.Tasks.Task.Run(() =>
+                    {
+                        RestoreSuspendedTasks(leftover);
+                        SettingsService.SnoozeDisabledTaskPaths = new List<string>();
+                    });
+                }
 
                 _lastKnownActive = IsActive;
                 _expiryTimer?.Dispose();
@@ -186,21 +207,30 @@ namespace FluentTaskScheduler.Services
         {
             try
             {
-                var disabled = SettingsService.SnoozeSuspendsScheduledTasks
-                    ? SuspendScheduledTasks()
-                    : new List<string>(SettingsService.SnoozeDisabledTaskPaths);
+                bool suspend = SettingsService.SnoozeSuspendsScheduledTasks;
+                var candidatePaths = suspend ? GetSuspendCandidates() : new List<string>(SettingsService.SnoozeDisabledTaskPaths);
 
+                // Persist the full candidate list *before* disabling anything, so a crash partway
+                // through the sweep still leaves a record Initialize() can use to finish restoring.
                 SettingsService.SaveSnoozeState(
                     isSnoozed: true,
                     untilUtc: untilUtc,
                     untilReboot: untilReboot,
                     bootStamp: untilReboot ? CurrentBootStamp() : "",
-                    disabledPaths: disabled);
+                    disabledPaths: candidatePaths);
 
                 _lastKnownActive = true;
                 LogService.Info($"Global snooze activated: {StatusText}");
                 NotificationService.ShowSnoozeStarted(StatusText);
                 SnoozeChanged?.Invoke(null, EventArgs.Empty);
+
+                // The actual disabling of (potentially hundreds of) tasks happens off the calling
+                // thread (UI thread for the dialog, message-pump thread for the tray menu) so it
+                // never freezes the app.
+                if (suspend && candidatePaths.Count > 0)
+                {
+                    LastBackgroundOperation = System.Threading.Tasks.Task.Run(() => DisableCandidates(candidatePaths));
+                }
             }
             catch (Exception ex)
             {
@@ -229,47 +259,76 @@ namespace FluentTaskScheduler.Services
 
         private static void ClearSnoozeState()
         {
-            RestoreSuspendedTasks();
-            SettingsService.SaveSnoozeState(false, null, false, "", new List<string>());
+            var paths = new List<string>(SettingsService.SnoozeDisabledTaskPaths);
+
+            // Clear the "snoozed" flag right away so the UI reflects it immediately, but keep the
+            // disabled-path list on disk until the restore actually finishes — if the app is killed
+            // mid-restore, Initialize() on the next launch will pick up where this left off.
+            SettingsService.SaveSnoozeState(false, null, false, "", paths);
+
+            if (paths.Count > 0)
+            {
+                LastBackgroundOperation = System.Threading.Tasks.Task.Run(() =>
+                {
+                    RestoreSuspendedTasks(paths);
+                    SettingsService.SnoozeDisabledTaskPaths = new List<string>();
+                });
+            }
         }
 
         // ── Optional hard suspension of scheduled triggers ───────────────────────
 
-        /// <summary>
-        /// Disables every currently enabled task and returns the paths that were actually changed,
-        /// so that tasks the user had already disabled are never silently re-enabled later.
-        /// </summary>
-        private static List<string> SuspendScheduledTasks()
-        {
-            var changed = new List<string>();
-            var service = new TaskServiceWrapper();
+        /// <summary>Prefix excluded from suspension unless the user explicitly opts in.</summary>
+        private const string MicrosoftTaskPrefix = @"\Microsoft\";
 
+        /// <summary>
+        /// Returns the paths of every currently-enabled task that snooze would disable, honoring
+        /// the \Microsoft\ exclusion. This is a fast, read-only pass — no tasks are touched yet.
+        /// </summary>
+        internal static List<string> GetSuspendCandidates()
+        {
+            bool includeMicrosoft = SettingsService.SnoozeIncludeMicrosoftTasks;
+            var service = TaskServiceFactory();
+
+            var candidates = new List<string>();
             foreach (var task in service.GetAllTasks(recursive: true))
             {
-                if (!task.IsEnabled || task.IsReadOnlyFallback) continue;
+                if (!task.IsEnabled || task.IsReadOnlyFallback || string.IsNullOrEmpty(task.Path)) continue;
+                if (!includeMicrosoft && task.Path.StartsWith(MicrosoftTaskPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                candidates.Add(task.Path);
+            }
+            return candidates;
+        }
 
+        /// <summary>Actually disables the given tasks. Runs on a background thread — see <see cref="Apply"/>.</summary>
+        internal static void DisableCandidates(List<string> paths)
+        {
+            var service = TaskServiceFactory();
+            int changed = 0;
+            foreach (var path in paths)
+            {
                 try
                 {
-                    service.SetTaskEnabled(task.Path, false);
-                    changed.Add(task.Path);
+                    service.SetTaskEnabled(path, false);
+                    changed++;
                 }
                 catch (Exception ex)
                 {
                     // Protected system tasks cannot be disabled — that is expected, not fatal.
-                    LogService.Warn($"Snooze could not suspend task '{task.Path}': {ex.Message}");
+                    LogService.Warn($"Snooze could not suspend task '{path}': {ex.Message}");
                 }
             }
-
-            LogService.Info($"Global snooze suspended {changed.Count} scheduled task(s).");
-            return changed;
+            LogService.Info($"Global snooze suspended {changed}/{paths.Count} scheduled task(s).");
         }
 
-        private static void RestoreSuspendedTasks()
+        internal static void RestoreSuspendedTasks(List<string> paths)
         {
-            var paths = SettingsService.SnoozeDisabledTaskPaths;
             if (paths == null || paths.Count == 0) return;
 
-            var service = new TaskServiceWrapper();
+            var service = TaskServiceFactory();
             int restored = 0;
             foreach (var path in paths)
             {

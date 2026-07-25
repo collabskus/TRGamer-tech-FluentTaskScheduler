@@ -178,9 +178,14 @@ namespace FluentTaskScheduler
             SnoozeCustom.Content = L("Snooze.Duration.Custom", "Custom Time...");
             SnoozeSuspendTriggers.Content = L("Snooze.SuspendTriggers", "Also suspend scheduled triggers");
             SnoozeSuspendHint.Text = L("Snooze.SuspendTriggersHint",
-                "Disables every enabled task through the Task Scheduler API and re-enables exactly those tasks when the snooze ends. Protected system tasks are skipped.");
+                "Disables every enabled task through the Task Scheduler API and re-enables exactly those tasks when the snooze ends. Tasks under \\Microsoft\\ (Defender, Windows Update, maintenance) are never touched unless you enable the option below. Protected system tasks are skipped.");
+            SnoozeIncludeMicrosoftTasks.Content = L("Snooze.IncludeMicrosoftTasks", "Also suspend Microsoft's own scheduled tasks (Defender, Windows Update, maintenance...)");
+            SnoozeMicrosoftWarning.Message = L("Snooze.IncludeMicrosoftTasksWarning",
+                "Not recommended: disabling these can break Windows security scans, updates, and maintenance until the snooze ends.");
 
             SnoozeSuspendTriggers.IsChecked = SettingsService.SnoozeSuspendsScheduledTasks;
+            SnoozeIncludeMicrosoftTasks.IsChecked = SettingsService.SnoozeIncludeMicrosoftTasks;
+            UpdateSnoozeSuspendOptionsVisibility();
             Snooze30m.IsChecked = true;
             SnoozeCustomDate.Date = DateTimeOffset.Now;
             SnoozeCustomTime.Time = DateTime.Now.AddHours(2).TimeOfDay;
@@ -198,12 +203,22 @@ namespace FluentTaskScheduler
             if (SnoozeCustomTime != null) SnoozeCustomTime.IsEnabled = custom;
         }
 
+        private void SnoozeSuspendTriggers_Changed(object sender, RoutedEventArgs e) => UpdateSnoozeSuspendOptionsVisibility();
+
+        private void UpdateSnoozeSuspendOptionsVisibility()
+        {
+            bool suspend = SnoozeSuspendTriggers.IsChecked == true;
+            SnoozeIncludeMicrosoftTasks.Visibility = suspend ? Visibility.Visible : Visibility.Collapsed;
+            SnoozeMicrosoftWarning.IsOpen = suspend && SnoozeIncludeMicrosoftTasks.IsChecked == true;
+        }
+
         private void SnoozeDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
             try
             {
-                // Persist the suspension preference first: SnoozeService reads it while activating.
+                // Persist the suspension preferences first: SnoozeService reads them while activating.
                 SettingsService.SnoozeSuspendsScheduledTasks = SnoozeSuspendTriggers.IsChecked == true;
+                SettingsService.SnoozeIncludeMicrosoftTasks = SnoozeSuspendTriggers.IsChecked == true && SnoozeIncludeMicrosoftTasks.IsChecked == true;
 
                 if (SnoozeReboot.IsChecked == true)
                 {
@@ -249,6 +264,8 @@ namespace FluentTaskScheduler
         }
 
         private static string L(string key, string fallback) => LocalizationService.GetString(key, fallback);
+
+        private static bool TryParseIsoDuration(string value, out TimeSpan result) => DurationUtil.TryParseIsoDuration(value, out result);
 
         public void RefreshLocalizedUi() => ApplyLocalizedUi();
 
@@ -676,7 +693,7 @@ namespace FluentTaskScheduler
                 _tempActions.Add(new TaskActionModel { Command = "notepad.exe" });
             }
 
-            _tempTriggers = new ObservableCollection<TaskTriggerModel> { new TaskTriggerModel { TriggerType = "Daily", ScheduleInfo = DateTime.Now.ToString("g"), DailyInterval = 1 } };
+            _tempTriggers = new ObservableCollection<TaskTriggerModel> { new TaskTriggerModel { TriggerType = "Daily", ScheduleInfo = FormatScheduleInfo(DateTime.Now), DailyInterval = 1 } };
             
             ActionList.ItemsSource = _tempActions;
             TriggerList.ItemsSource = _tempTriggers;
@@ -1200,22 +1217,17 @@ namespace FluentTaskScheduler
                 }
             }
 
-            if (_historyStatusFilter == "Success") filtered = filtered.Where(h => h.Result == "Task Completed");
-            else if (_historyStatusFilter == "Failed") filtered = filtered.Where(IsFailedHistoryEntry);
+            if (_historyStatusFilter == "Success") filtered = filtered.Where(TaskHistoryClassifier.IsSuccess);
+            else if (_historyStatusFilter == "Failed") filtered = filtered.Where(TaskHistoryClassifier.IsFailure);
 
             InlineHistoryListView.ItemsSource = filtered.ToList();
         }
 
-        // Shared by UpdateHistoryList's "Failed" filter and UpdateHistoryStats' StatFailed count,
-        // so the stat tile and clicking it to filter always agree on what counts as a failure.
-        private static bool IsFailedHistoryEntry(TaskHistoryEntry h) =>
-            h.Result != "Task Completed" && h.Result != "Task Started" && h.Result != "Task Registered";
-
         private void UpdateHistoryStats()
         {
             StatTotalRuns.Text = _fullHistory.Count.ToString();
-            StatSuccess.Text = _fullHistory.Count(h => h.Result == "Task Completed").ToString();
-            StatFailed.Text = _fullHistory.Count(IsFailedHistoryEntry).ToString();
+            StatSuccess.Text = _fullHistory.Count(TaskHistoryClassifier.IsSuccess).ToString();
+            StatFailed.Text = _fullHistory.Count(TaskHistoryClassifier.IsFailure).ToString();
             StatLastResult.Text = _fullHistory.FirstOrDefault()?.Result ?? "-";
             HistoryStatsGrid.Visibility = Visibility.Visible;
         }
@@ -1490,6 +1502,17 @@ namespace FluentTaskScheduler
             if (ViewModel.SelectedTask == null) return;
             try { TaskDetailsDialog.Hide(); } catch { }
 
+            if (ViewModel.SelectedTask.HasUnsupportedElements)
+            {
+                // Editing would silently drop or corrupt elements this app can't represent
+                // (non-Exec actions, unrecognized trigger types) — refuse rather than risk it.
+                await ShowErrorDialog(string.Format(
+                    L("Dialog.UnsupportedElements",
+                      "This task contains elements FluentTaskScheduler can't edit safely ({0}). Editing and saving it here would remove or corrupt those elements. Use Windows Task Scheduler to modify this task instead."),
+                    ViewModel.SelectedTask.UnsupportedElementsDescription));
+                return;
+            }
+
             _isEditMode = true;
             _isPopulatingDetails = true;
             _isFromTemplate = false;
@@ -1519,6 +1542,8 @@ namespace FluentTaskScheduler
             EditTaskIdleDurationSetting.Text = ViewModel.SelectedTask.IdleDuration;
             EditTaskStopOnIdleEnd.IsChecked = ViewModel.SelectedTask.StopOnIdleEnd;
             EditTaskOnlyIfAC.IsChecked = ViewModel.SelectedTask.OnlyIfAC;
+            EditTaskStopBatterySwitch.IsChecked = ViewModel.SelectedTask.StopOnBattery;
+            EditTaskOnBattery.IsChecked = ViewModel.SelectedTask.DisallowStartOnBatteries;
             EditTaskOnlyIfNetwork.IsChecked = ViewModel.SelectedTask.OnlyIfNetwork;
             EditTaskWakeToRun.IsChecked = ViewModel.SelectedTask.WakeToRun;
             EditTaskIsHidden.IsChecked = ViewModel.SelectedTask.IsHidden;
@@ -1596,8 +1621,40 @@ namespace FluentTaskScheduler
         private async void TaskEditDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
             args.Cancel = true; // Handle async manually
-            
+
             if (string.IsNullOrWhiteSpace(EditTaskName.Text)) return;
+
+            // "Stop task if runs longer than" is an editable combo box: a typed custom value has no
+            // SelectedItem, so it must be read from .Text — falling back to the preset's Tag only
+            // silently replaced any custom duration with 72h (see 1.4).
+            string stopAfterValue = "";
+            if (EditTaskStopAfter.IsChecked == true)
+            {
+                stopAfterValue = (EditTaskStopAfterVal.SelectedItem as Microsoft.UI.Xaml.Controls.ComboBoxItem)?.Tag?.ToString()
+                    ?? EditTaskStopAfterVal.Text?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(stopAfterValue) || !TryParseIsoDuration(stopAfterValue, out _))
+                {
+                    EditTaskErrorBar.Message = string.Format(
+                        L("Dialog.Error.InvalidStopAfter", "\"{0}\" is not a valid duration for \"Stop task if runs longer than\". Use an ISO-8601 duration such as PT90M or P1D."),
+                        stopAfterValue);
+                    EditTaskErrorBar.IsOpen = true;
+                    return;
+                }
+            }
+
+            // Random delay is validated per-trigger here rather than silently discarded on a parse
+            // failure (see 1.3).
+            foreach (var trig in _tempTriggers)
+            {
+                if (!string.IsNullOrWhiteSpace(trig.RandomDelay) && !TryParseIsoDuration(trig.RandomDelay, out _))
+                {
+                    EditTaskErrorBar.Message = string.Format(
+                        L("Dialog.Error.InvalidRandomDelay", "\"{0}\" is not a valid random delay value. Use an ISO-8601 duration such as PT30M or PT1H."),
+                        trig.RandomDelay);
+                    EditTaskErrorBar.IsOpen = true;
+                    return;
+                }
+            }
 
             var model = new ScheduledTaskModel
             {
@@ -1614,6 +1671,8 @@ namespace FluentTaskScheduler
                 IdleDuration = EditTaskIdleDurationSetting.Text ?? "",
                 StopOnIdleEnd = EditTaskStopOnIdleEnd.IsChecked == true,
                 OnlyIfAC = EditTaskOnlyIfAC.IsChecked == true,
+                StopOnBattery = EditTaskStopBatterySwitch.IsChecked == true,
+                DisallowStartOnBatteries = EditTaskOnBattery.IsChecked == true,
                 OnlyIfNetwork = EditTaskOnlyIfNetwork.IsChecked == true,
                 NetworkId = (EditTaskNetworkSelection.SelectedItem as Microsoft.UI.Xaml.Controls.ComboBoxItem)?.Tag?.ToString() ?? "",
                 NetworkName = (EditTaskNetworkSelection.SelectedItem as Microsoft.UI.Xaml.Controls.ComboBoxItem)?.Content?.ToString() ?? "",
@@ -1630,9 +1689,7 @@ namespace FluentTaskScheduler
                 RestartOnFailure = EditTaskRestartOnFailure.IsChecked == true,
                 RestartInterval = EditTaskRestartInterval.Text ?? "",
                 RestartCount = EditTaskRestartCount != null ? (int)double.Round(EditTaskRestartCount.Value) : 3,
-                StopIfRunsLongerThan = EditTaskStopAfter.IsChecked == true
-                    ? ((EditTaskStopAfterVal.SelectedItem as Microsoft.UI.Xaml.Controls.ComboBoxItem)?.Tag?.ToString() ?? "PT72H")
-                    : ""
+                StopIfRunsLongerThan = stopAfterValue
             };
 
             model.ExpirationDate = EditTaskExpires.IsChecked == true
@@ -1663,11 +1720,38 @@ namespace FluentTaskScheduler
 
                 // Handle renaming: if name changed (case-sensitive check for the file system/TS behavior)
                 // but Task Scheduler is case-insensitive, so we only delete if it's truly a different task
-                if (_isEditMode && ViewModel.SelectedTask != null && 
+                if (_isEditMode && ViewModel.SelectedTask != null &&
                     !model.Name.Equals(ViewModel.SelectedTask.Name, StringComparison.OrdinalIgnoreCase))
                 {
-                    ViewModel.TaskService.DeleteTask(ViewModel.SelectedTask.Path);
-                    LogService.Info($"Renamed task - deleted old task at '{ViewModel.SelectedTask.Path}'");
+                    string oldPath = ViewModel.SelectedTask.Path;
+                    string newPath = (folder ?? "\\").TrimEnd('\\') + "\\" + model.Name;
+                    try
+                    {
+                        ViewModel.TaskService.DeleteTask(oldPath);
+                        LogService.Info($"Renamed task - deleted old task at '{oldPath}'");
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        // The new copy already exists at this point (RegisterTask above succeeded),
+                        // so a failed delete of the old one would leave a duplicate. Undo the new
+                        // copy so the rename fails cleanly instead of silently duplicating the task.
+                        LogService.Error($"Rename failed: could not delete old task '{oldPath}' after registering '{newPath}'. Rolling back the new copy.", deleteEx);
+                        try { ViewModel.TaskService.DeleteTask(newPath); }
+                        catch (Exception rollbackEx)
+                        {
+                            LogService.Error($"Rollback also failed: could not delete the new copy '{newPath}'. Both '{oldPath}' and '{newPath}' may now exist.", rollbackEx);
+                            EditTaskErrorBar.Message = string.Format(
+                                L("Dialog.Error.RenameDuplicated", "Rename failed: both \"{0}\" and \"{1}\" now exist. Please delete one manually in Task Scheduler."),
+                                System.IO.Path.GetFileName(oldPath), System.IO.Path.GetFileName(newPath));
+                            EditTaskErrorBar.IsOpen = true;
+                            return;
+                        }
+                        EditTaskErrorBar.Message = string.Format(
+                            L("Dialog.Error.RenameFailed", "Could not rename \"{0}\" to \"{1}\": the old task could not be deleted ({2})."),
+                            System.IO.Path.GetFileName(oldPath), model.Name, deleteEx.Message);
+                        EditTaskErrorBar.IsOpen = true;
+                        return;
+                    }
                 }
 
                 // The pipeline watcher caches configuration; force it to re-read after a save.
@@ -1676,8 +1760,8 @@ namespace FluentTaskScheduler
                 TaskEditDialog.Hide();
                 await ViewModel.LoadTasksAsync();
             }
-            catch (Exception ex) 
-            { 
+            catch (Exception ex)
+            {
                 EditTaskErrorBar.Message = "Failed to save task: " + ex.Message;
                 EditTaskErrorBar.IsOpen = true;
             }
@@ -1697,7 +1781,7 @@ namespace FluentTaskScheduler
                     if (item.Tag?.ToString() == tr.TriggerType) EditTaskTriggerType.SelectedItem = item;
                 }
                 
-                DateTime.TryParse(tr.ScheduleInfo, out var dt);
+                var dt = TryParseScheduleInfo(tr.ScheduleInfo) ?? DateTime.MinValue;
                 EditTaskStartDate.Date = dt == DateTime.MinValue ? DateTime.Today : dt;
                 EditTaskStartTime.Time = dt == DateTime.MinValue ? DateTime.Now.TimeOfDay : dt.TimeOfDay;
                 
@@ -1750,6 +1834,12 @@ namespace FluentTaskScheduler
                     "Monday" => 0, "Tuesday" => 1, "Wednesday" => 2, "Thursday" => 3, "Friday" => 4, "Saturday" => 5, "Sunday" => 6, _ => 0
                 };
 
+                // Random delay — independent of repetition, so populated unconditionally (see 1.3)
+                bool hasRandomDelay = !string.IsNullOrWhiteSpace(tr.RandomDelay);
+                EditTaskRandomDelay.IsChecked = hasRandomDelay;
+                EditTaskRandomDelayVal.Text = tr.RandomDelay;
+                EditTaskRandomDelayVal.IsEnabled = hasRandomDelay;
+
                 // Idle trigger
                 EditTaskIdleDuration.Text = tr.IdleDuration;
 
@@ -1772,9 +1862,12 @@ namespace FluentTaskScheduler
             if (TriggerList.SelectedItem is TaskTriggerModel tr)
             {
                 var combined = EditTaskStartDate.Date.Date + EditTaskStartTime.Time;
-                tr.ScheduleInfo = combined.ToString("g");
+                tr.ScheduleInfo = FormatScheduleInfo(combined);
             }
         }
+
+        private static string FormatScheduleInfo(DateTime value) => DurationUtil.FormatScheduleInfo(value);
+        private static DateTime? TryParseScheduleInfo(string? value) => DurationUtil.TryParseScheduleInfo(value);
 
         private void DailyInterval_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -2015,7 +2108,7 @@ namespace FluentTaskScheduler
         }
 
         // List Buttons
-        private void BtnAddTrigger_Click(object sender, RoutedEventArgs e) { _tempTriggers.Add(new TaskTriggerModel { TriggerType="Daily", ScheduleInfo=DateTime.Now.ToString("g") }); TriggerList.SelectedIndex = _tempTriggers.Count - 1; }
+        private void BtnAddTrigger_Click(object sender, RoutedEventArgs e) { _tempTriggers.Add(new TaskTriggerModel { TriggerType="Daily", ScheduleInfo=FormatScheduleInfo(DateTime.Now) }); TriggerList.SelectedIndex = _tempTriggers.Count - 1; }
         private void BtnRemoveTrigger_Click(object sender, RoutedEventArgs e) { if (TriggerList.SelectedItem is TaskTriggerModel t) _tempTriggers.Remove(t); }
         private void BtnMoveTriggerUp_Click(object sender, RoutedEventArgs e) 
         { 
@@ -2085,7 +2178,23 @@ namespace FluentTaskScheduler
             EditTaskExpirationDate.IsEnabled = enabled;
             EditTaskExpirationTime.IsEnabled = enabled;
         }
-        private void EditTaskRandomDelay_Click(object sender, RoutedEventArgs e) { if (EditTaskRandomDelayVal != null) EditTaskRandomDelayVal.IsEnabled = EditTaskRandomDelay.IsChecked == true; }
+        private void EditTaskRandomDelay_Click(object sender, RoutedEventArgs e)
+        {
+            if (EditTaskRandomDelayVal == null) return;
+            bool on = EditTaskRandomDelay.IsChecked == true;
+            EditTaskRandomDelayVal.IsEnabled = on;
+            if (_isPopulatingDetails) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+                tr.RandomDelay = on ? EditTaskRandomDelayVal.Text ?? "" : "";
+        }
+
+        private void EditTaskRandomDelayVal_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isPopulatingDetails) return;
+            if (EditTaskRandomDelay.IsChecked != true) return;
+            if (TriggerList.SelectedItem is TaskTriggerModel tr)
+                tr.RandomDelay = EditTaskRandomDelayVal.Text ?? "";
+        }
         private void EditTaskRepetitionInterval_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isPopulatingDetails) return;
