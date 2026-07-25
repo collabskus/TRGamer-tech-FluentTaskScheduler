@@ -8,8 +8,11 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using FluentTaskScheduler.Models;
 using FluentTaskScheduler.Services;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Dispatching;
+using Windows.UI;
 
 namespace FluentTaskScheduler.ViewModels
 {
@@ -21,6 +24,51 @@ namespace FluentTaskScheduler.ViewModels
         public double SuccessHeight { get; set; }
         public double FailureHeight { get; set; }
         public double LabelOpacity { get; set; } = 0.6;
+    }
+
+    /// <summary>One hour-of-day cell in the 24-hour execution heatmap.</summary>
+    public class HeatmapCell
+    {
+        public int Hour { get; set; }
+        public string HourLabel => Hour.ToString("00");
+        public int Runs { get; set; }
+
+        /// <summary>0..1 relative to the busiest hour — drives the cell's fill opacity.</summary>
+        public double Intensity { get; set; }
+
+        /// <summary>Keeps an hour with at least one run visible even when it is far from the peak.</summary>
+        public double FillOpacity => Runs == 0 ? 0.06 : 0.20 + (Intensity * 0.80);
+
+        public double CountOpacity => Runs == 0 ? 0.25 : 0.9;
+        public string Tooltip { get; set; } = "";
+    }
+
+    /// <summary>A row in the real-time execution log stream.</summary>
+    public class ExecutionLogEntry
+    {
+        public DateTime Time { get; set; }
+        public string TimeText => Time.ToString("MM-dd HH:mm:ss");
+        public string TaskName { get; set; } = "";
+        public string TaskPath { get; set; } = "";
+
+        /// <summary>"Success", "Failed" or "Snoozed".</summary>
+        public string Status { get; set; } = "";
+        public string StatusText { get; set; } = "";
+        public string Detail { get; set; } = "";
+
+        public string Glyph => Status switch
+        {
+            "Success" => "\uE73E",
+            "Failed" => "\uE711",
+            _ => "\uE769"
+        };
+
+        public Brush StatusBrush => new SolidColorBrush(Status switch
+        {
+            "Success" => Color.FromArgb(255, 60, 160, 90),
+            "Failed" => Color.FromArgb(255, 200, 60, 60),
+            _ => Color.FromArgb(255, 202, 128, 0)
+        });
     }
 
     public class FilterItem : INotifyPropertyChanged
@@ -64,6 +112,7 @@ namespace FluentTaskScheduler.ViewModels
         public string ErrorMessage { get; set; } = "";
         public string ExitCode { get; set; } = "";
     }
+
     public class DashboardViewModel : INotifyPropertyChanged
     {
         private readonly TaskServiceWrapper _taskService;
@@ -77,6 +126,18 @@ namespace FluentTaskScheduler.ViewModels
         private int _runningTasks;
         private DispatcherQueueTimer? _autoRefreshTimer;
 
+        // Analytics
+        private int _runs24h;
+        private int _runs7d;
+        private int _successRate = 100;
+        private string _averageDurationText = "—";
+        private string _longestTaskName = "—";
+        private string _longestTaskDuration = "";
+        private int _peakHourRuns;
+        private string _peakHourLabel = "—";
+        private string _executionFilter = "All";
+        private List<ExecutionLogEntry> _allExecutionEntries = new();
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public DashboardViewModel()
@@ -89,9 +150,11 @@ namespace FluentTaskScheduler.ViewModels
             FailedTasksList = new ObservableCollection<FailedTaskInfo>();
             AvailableTags = new ObservableCollection<FilterItem>();
             AvailableCategories = new ObservableCollection<FilterItem>();
-            
+            Heatmap = new ObservableCollection<HeatmapCell>();
+            ExecutionLog = new ObservableCollection<ExecutionLogEntry>();
+
             RefreshFilterLabels();
-            
+
             LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
         }
 
@@ -130,6 +193,7 @@ namespace FluentTaskScheduler.ViewModels
         public bool HasRunningTasks => _runningTasks > 0;
         public Visibility NoRunningTasksVisible => _runningTasks == 0 ? Visibility.Visible : Visibility.Collapsed;
         public Visibility NoFailedTasksVisible => FailedTasksList.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility NoExecutionEntriesVisible => ExecutionLog.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         public int TotalTasks
         {
@@ -164,13 +228,83 @@ namespace FluentTaskScheduler.ViewModels
         public int HealthScore
         {
             get => _healthScore;
-            set { _healthScore = value; OnPropertyChanged(); }
+            set { _healthScore = value; OnPropertyChanged(); OnPropertyChanged(nameof(HealthScoreText)); HealthScoreChanged?.Invoke(this, EventArgs.Empty); }
         }
+
+        public string HealthScoreText => $"{_healthScore}%";
+
+        /// <summary>Raised when the ring needs redrawing (the arc geometry is built in the page).</summary>
+        public event EventHandler? HealthScoreChanged;
 
         public bool IsLoading
         {
             get => _isLoading;
             set { _isLoading = value; OnPropertyChanged(); }
+        }
+
+        // ── Analytics surface ───────────────────────────────────────────────────
+
+        public int Runs24h
+        {
+            get => _runs24h;
+            set { _runs24h = value; OnPropertyChanged(); }
+        }
+
+        public int Runs7d
+        {
+            get => _runs7d;
+            set { _runs7d = value; OnPropertyChanged(); }
+        }
+
+        public int SuccessRate
+        {
+            get => _successRate;
+            set { _successRate = value; OnPropertyChanged(); OnPropertyChanged(nameof(SuccessRateText)); }
+        }
+
+        public string SuccessRateText => $"{_successRate}%";
+
+        public string AverageDurationText
+        {
+            get => _averageDurationText;
+            set { _averageDurationText = value; OnPropertyChanged(); }
+        }
+
+        public string LongestTaskName
+        {
+            get => _longestTaskName;
+            set { _longestTaskName = value; OnPropertyChanged(); }
+        }
+
+        public string LongestTaskDuration
+        {
+            get => _longestTaskDuration;
+            set { _longestTaskDuration = value; OnPropertyChanged(); }
+        }
+
+        public int PeakHourRuns
+        {
+            get => _peakHourRuns;
+            set { _peakHourRuns = value; OnPropertyChanged(); }
+        }
+
+        public string PeakHourLabel
+        {
+            get => _peakHourLabel;
+            set { _peakHourLabel = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>"All", "Success", "Failed" or "Snoozed".</summary>
+        public string ExecutionFilter
+        {
+            get => _executionFilter;
+            set
+            {
+                if (_executionFilter == value) return;
+                _executionFilter = value;
+                OnPropertyChanged();
+                ApplyExecutionFilter();
+            }
         }
 
         public ObservableCollection<TaskHistoryEntry> RecentHistory { get; }
@@ -180,6 +314,8 @@ namespace FluentTaskScheduler.ViewModels
         public ObservableCollection<FailedTaskInfo> FailedTasksList { get; }
         public ObservableCollection<FilterItem> AvailableTags { get; }
         public ObservableCollection<FilterItem> AvailableCategories { get; }
+        public ObservableCollection<HeatmapCell> Heatmap { get; }
+        public ObservableCollection<ExecutionLogEntry> ExecutionLog { get; }
 
         public string AllTagsLabel => LocalizationService.GetString("Dashboard.AllTags", "All Tags");
         public string AllCategoriesLabel => LocalizationService.GetString("Dashboard.AllCategories", "All Categories");
@@ -252,13 +388,16 @@ namespace FluentTaskScheduler.ViewModels
 
                     // 3. Filter tasks if needed
                     var allTasks = allTasksRaw;
+                    bool isFiltered = false;
                     if (!string.IsNullOrEmpty(SelectedTag) && SelectedTag != AllTagsLabel)
                     {
                         allTasks = allTasks.Where(t => t.Tags != null && t.Tags.Contains(SelectedTag, StringComparer.OrdinalIgnoreCase)).ToList();
+                        isFiltered = true;
                     }
                     if (!string.IsNullOrEmpty(SelectedCategory) && SelectedCategory != AllCategoriesLabel)
                     {
                         allTasks = allTasks.Where(t => string.Equals(t.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase)).ToList();
+                        isFiltered = true;
                     }
 
                     // 4. Calculate Counts
@@ -266,120 +405,19 @@ namespace FluentTaskScheduler.ViewModels
                     int enabled = allTasks.Count(t => t.IsEnabled);
                     int disabled = allTasks.Count(t => !t.IsEnabled);
 
-                    // 3. Currently Running Tasks with process detection
+                    // 5. Currently Running Tasks with process detection
                     var runningTasks = allTasks.Where(t => t.State == "Running").ToList();
-                    var runningInfos = new List<RunningTaskInfo>();
-                    foreach (var task in runningTasks)
+                    var runningInfos = BuildRunningTaskInfos(runningTasks);
+
+                    // 6. One bulk read of the operational log powers every analytic below.
+                    var records = _taskService.GetRecentRunRecords(TimeSpan.FromDays(7));
+                    if (isFiltered)
                     {
-                        var actionCmd = task.ActionCommand;
-                        var processName = "";
-                        var processAlive = false;
-                        var processStatus = LocalizationService.GetString("Dashboard.Unknown", "Unknown");
-
-                        if (!string.IsNullOrEmpty(actionCmd))
-                        {
-                            // Extract process name from command (e.g. "C:\Python\python.exe" -> "python")
-                            processName = System.IO.Path.GetFileNameWithoutExtension(actionCmd.Trim('"'));
-                            try
-                            {
-                                var procs = Process.GetProcessesByName(processName);
-                                processAlive = procs.Length > 0;
-                                processStatus = processAlive ? $"Process active ({procs.Length} instance{(procs.Length > 1 ? "s" : "")})" : "Process not found";
-                            }
-                            catch { processStatus = "Unable to check"; }
-                        }
-
-                        var duration = "";
-                        if (task.LastRunTime.HasValue)
-                        {
-                            var elapsed = DateTime.Now - task.LastRunTime.Value;
-                            if (elapsed.TotalDays >= 1) duration = $"{(int)elapsed.TotalDays}d {elapsed.Hours}h";
-                            else if (elapsed.TotalHours >= 1) duration = $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m";
-                            else duration = $"{(int)elapsed.TotalMinutes}m";
-                        }
-
-                        runningInfos.Add(new RunningTaskInfo
-                        {
-                            Name = task.Name,
-                            Path = task.Path,
-                            ActionCommand = string.IsNullOrEmpty(processName) ? actionCmd : processName,
-                            RunningDuration = duration,
-                            ProcessAlive = processAlive,
-                            ProcessStatus = processStatus
-                        });
+                        var allowed = new HashSet<string>(allTasks.Select(t => t.Path), StringComparer.OrdinalIgnoreCase);
+                        records = records.Where(r => allowed.Contains(r.TaskPath)).ToList();
                     }
 
-                    // 4. Get Recent History + chart data + failed tasks
-                    int success = 0;
-                    int failed = 0;
-                    var historyEntries = new List<TaskHistoryEntry>();
-                    var allHistoryForChart = new List<TaskHistoryEntry>();
-                    var failedInfos = new List<FailedTaskInfo>();
-
-                    // Only pull history for tasks that actually ran within the 7-day window the chart
-                    // below covers - a fixed Take(N) would silently drop real activity from tasks that
-                    // ran recently but aren't among the very latest by LastRunTime.
-                    var chartWindowStart = DateTime.Today.AddDays(-6);
-                    foreach (var task in allTasks.Where(t => t.LastRunTime.HasValue && t.LastRunTime.Value.Date >= chartWindowStart)
-                                                  .OrderByDescending(t => t.LastRunTime))
-                    {
-                        var taskHistory = _taskService.GetTaskHistory(task.Path);
-                        if (taskHistory.Any())
-                        {
-                            var last = taskHistory.First();
-                            if (last.Result == "Task Completed") success++;
-                            else if (last.Result == "Task Failed")
-                            {
-                                failed++;
-                                failedInfos.Add(new FailedTaskInfo
-                                {
-                                    Name = task.Name,
-                                    Path = task.Path,
-                                    LastRunTime = task.LastRunTime?.ToString("g") ?? "",
-                                    ErrorMessage = last.Message,
-                                    ExitCode = last.ExitCode
-                                });
-                            }
-                            historyEntries.AddRange(taskHistory.Take(5));
-                        }
-                        allHistoryForChart.AddRange(taskHistory);
-                    }
-
-                    // 5. Build 7-day chart (last 7 days, oldest first)
-                    var today = DateTime.Today;
-                    var chartPoints = Enumerable.Range(0, 7)
-                        .Select(i => today.AddDays(-6 + i))
-                        .Select(day =>
-                        {
-                            var dayEntries = allHistoryForChart.Where(h =>
-                                DateTime.TryParse(h.Time, out var dt) && dt.Date == day);
-                            return new DailyChartPoint
-                            {
-                                Label = day == today ? LocalizationService.GetString("Dashboard.Today", "Today") : day.ToString("ddd"),
-                                Successes = dayEntries.Count(e => e.Result == "Task Completed"),
-                                Failures  = dayEntries.Count(e => e.Result == "Task Failed"),
-                                LabelOpacity = day == today ? 1.0 : 0.6
-                            };
-                        }).ToList();
-
-                    const double MaxBarHeight = 100.0;
-                    int maxVal = Math.Max(1, chartPoints.Max(p => Math.Max(p.Successes, p.Failures)));
-                    foreach (var p in chartPoints)
-                    {
-                        p.SuccessHeight = (p.Successes / (double)maxVal) * MaxBarHeight;
-                        p.FailureHeight = (p.Failures  / (double)maxVal) * MaxBarHeight;
-                    }
-
-                    // 6. Calculate Health Score
-                    int score = 100;
-                    if (failed > 0) score -= (failed * 10);
-                    if (score < 0) score = 0;
-
-                    // 7. Get Upcoming
-                    var upcoming = allTasks.Where(t => t.NextRunTime.HasValue && t.IsEnabled)
-                                           .OrderBy(t => t.NextRunTime)
-                                           .Take(5)
-                                           .ToList();
+                    var analytics = ComputeAnalytics(records, allTasks);
 
                     // Update UI
                     dispatcherQueue.TryEnqueue(() =>
@@ -388,30 +426,45 @@ namespace FluentTaskScheduler.ViewModels
                         EnabledTasks = enabled;
                         DisabledTasks = disabled;
                         RunningTasks = runningTasks.Count;
-                        LastRunSuccess = success;
-                        LastRunFailed = failed;
-                        HealthScore = score;
+                        LastRunSuccess = analytics.SuccessCount;
+                        LastRunFailed = analytics.FailureCount;
+                        HealthScore = analytics.HealthScore;
+                        SuccessRate = analytics.SuccessRate;
+                        Runs24h = analytics.Runs24h;
+                        Runs7d = analytics.Runs7d;
+                        AverageDurationText = analytics.AverageDurationText;
+                        LongestTaskName = analytics.LongestTaskName;
+                        LongestTaskDuration = analytics.LongestTaskDuration;
+                        PeakHourRuns = analytics.PeakHourRuns;
+                        PeakHourLabel = analytics.PeakHourLabel;
 
                         RunningTasksList.Clear();
                         foreach (var r in runningInfos)
                             RunningTasksList.Add(r);
 
                         FailedTasksList.Clear();
-                        foreach (var f in failedInfos)
+                        foreach (var f in analytics.FailedTasks)
                             FailedTasksList.Add(f);
                         OnPropertyChanged(nameof(NoFailedTasksVisible));
 
                         RecentHistory.Clear();
-                        foreach (var h in historyEntries.OrderByDescending(x => x.Time).Take(10))
+                        foreach (var h in analytics.RecentHistory)
                             RecentHistory.Add(h);
 
                         UpcomingTasks.Clear();
-                        foreach (var u in upcoming)
+                        foreach (var u in analytics.Upcoming)
                             UpcomingTasks.Add(u);
 
                         DailyHistory.Clear();
-                        foreach (var p in chartPoints)
+                        foreach (var p in analytics.ChartPoints)
                             DailyHistory.Add(p);
+
+                        Heatmap.Clear();
+                        foreach (var c in analytics.Heatmap)
+                            Heatmap.Add(c);
+
+                        _allExecutionEntries = analytics.ExecutionEntries;
+                        ApplyExecutionFilter();
 
                         // Update available tags
                         var currentTags = AvailableTags.Select(t => t.Name).ToList();
@@ -441,12 +494,284 @@ namespace FluentTaskScheduler.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Dashboard Load Error: {ex}");
+                LogService.Error("Dashboard data load failed.", ex);
             }
             finally
             {
                 dispatcherQueue.TryEnqueue(() => IsLoading = false);
             }
+        }
+
+        // ── Analytics computation ───────────────────────────────────────────────
+
+        private sealed class AnalyticsResult
+        {
+            public int SuccessCount;
+            public int FailureCount;
+            public int HealthScore = 100;
+            public int SuccessRate = 100;
+            public int Runs24h;
+            public int Runs7d;
+            public string AverageDurationText = "—";
+            public string LongestTaskName = "—";
+            public string LongestTaskDuration = "";
+            public int PeakHourRuns;
+            public string PeakHourLabel = "—";
+            public List<HeatmapCell> Heatmap = new();
+            public List<DailyChartPoint> ChartPoints = new();
+            public List<ExecutionLogEntry> ExecutionEntries = new();
+            public List<FailedTaskInfo> FailedTasks = new();
+            public List<TaskHistoryEntry> RecentHistory = new();
+            public List<ScheduledTaskModel> Upcoming = new();
+        }
+
+        private AnalyticsResult ComputeAnalytics(List<TaskRunRecord> records, List<ScheduledTaskModel> tasks)
+        {
+            var result = new AnalyticsResult();
+            var now = DateTime.Now;
+            var today = DateTime.Today;
+
+            var starts = records.Where(r => r.IsStart).ToList();
+            var outcomes = records.Where(r => r.IsSuccess || r.IsFailure).ToList();
+
+            result.Runs7d = starts.Count;
+            result.Runs24h = starts.Count(r => r.Time >= now.AddHours(-24));
+            result.SuccessCount = outcomes.Count(r => r.IsSuccess);
+            result.FailureCount = outcomes.Count(r => r.IsFailure);
+
+            int totalOutcomes = result.SuccessCount + result.FailureCount;
+            result.SuccessRate = totalOutcomes == 0 ? 100 : (int)Math.Round(result.SuccessCount * 100.0 / totalOutcomes);
+            // Health = success rate, but a system with no data at all is reported as healthy rather than 0.
+            result.HealthScore = result.SuccessRate;
+
+            // Heatmap: aggregate the 7-day window by hour-of-day.
+            var byHour = new int[24];
+            foreach (var s in starts) byHour[s.Time.Hour]++;
+            int maxHour = byHour.Max();
+            for (int h = 0; h < 24; h++)
+            {
+                result.Heatmap.Add(new HeatmapCell
+                {
+                    Hour = h,
+                    Runs = byHour[h],
+                    Intensity = maxHour == 0 ? 0 : byHour[h] / (double)maxHour,
+                    Tooltip = string.Format(
+                        LocalizationService.GetString("Dashboard.Heatmap.CellTooltip", "{0}:00 – {1} run(s) in the last 7 days"),
+                        h.ToString("00"), byHour[h])
+                });
+            }
+            if (maxHour > 0)
+            {
+                int peak = Array.IndexOf(byHour, maxHour);
+                result.PeakHourRuns = maxHour;
+                result.PeakHourLabel = $"{peak:00}:00";
+            }
+
+            // Durations: pair a start with its completion via the task-scheduler instance id.
+            var durations = new List<(string Task, TimeSpan Duration)>();
+            foreach (var group in records.Where(r => !string.IsNullOrEmpty(r.InstanceId))
+                                         .GroupBy(r => r.TaskPath + "|" + r.InstanceId))
+            {
+                var start = group.Where(r => r.IsStart).OrderBy(r => r.Time).FirstOrDefault();
+                var end = group.Where(r => r.IsCompletion || r.IsActionResult).OrderByDescending(r => r.Time).FirstOrDefault();
+                if (start == null || end == null) continue;
+
+                var span = end.Time - start.Time;
+                // Ignore impossible pairings (clock changes) and instances that clearly span log gaps.
+                if (span <= TimeSpan.Zero || span > TimeSpan.FromHours(24)) continue;
+                durations.Add((start.TaskName, span));
+            }
+
+            if (durations.Count > 0)
+            {
+                var avg = TimeSpan.FromTicks((long)durations.Average(d => d.Duration.Ticks));
+                result.AverageDurationText = FormatDuration(avg);
+
+                var longest = durations.OrderByDescending(d => d.Duration).First();
+                result.LongestTaskName = longest.Task;
+                result.LongestTaskDuration = FormatDuration(longest.Duration);
+            }
+
+            // 7-day success/failure bar chart, oldest first.
+            var chartPoints = Enumerable.Range(0, 7)
+                .Select(i => today.AddDays(-6 + i))
+                .Select(day => new DailyChartPoint
+                {
+                    Label = day == today ? LocalizationService.GetString("Dashboard.Today", "Today") : day.ToString("ddd"),
+                    Successes = outcomes.Count(o => o.IsSuccess && o.Time.Date == day),
+                    Failures = outcomes.Count(o => o.IsFailure && o.Time.Date == day),
+                    LabelOpacity = day == today ? 1.0 : 0.6
+                }).ToList();
+
+            const double MaxBarHeight = 100.0;
+            int maxVal = Math.Max(1, chartPoints.Max(p => Math.Max(p.Successes, p.Failures)));
+            foreach (var p in chartPoints)
+            {
+                p.SuccessHeight = (p.Successes / (double)maxVal) * MaxBarHeight;
+                p.FailureHeight = (p.Failures / (double)maxVal) * MaxBarHeight;
+            }
+            result.ChartPoints = chartPoints;
+
+            // Execution log stream — outcomes plus snooze-suppressed runs, newest first.
+            var entries = outcomes
+                .OrderByDescending(o => o.Time)
+                .Take(200)
+                .Select(o => new ExecutionLogEntry
+                {
+                    Time = o.Time,
+                    TaskName = o.TaskName,
+                    TaskPath = o.TaskPath,
+                    Status = o.IsSuccess ? "Success" : "Failed",
+                    StatusText = o.IsSuccess
+                        ? LocalizationService.GetString("Dashboard.Status.Success", "Success")
+                        : LocalizationService.GetString("Dashboard.Status.Failed", "Failed"),
+                    Detail = o.IsLaunchFailure
+                        ? LocalizationService.GetString("Dashboard.Status.LaunchFailed", "Task Scheduler could not launch the action")
+                        : string.Format(LocalizationService.GetString("Dashboard.Status.ExitCode", "Exit code {0}"),
+                                        o.ExitCodeText)
+                })
+                .ToList();
+
+            var cutoff = now.AddDays(-7);
+            entries.AddRange(SnoozeService.SuppressedRuns
+                .Where(s => s.TimeUtc.ToLocalTime() >= cutoff)
+                .Select(s => new ExecutionLogEntry
+                {
+                    Time = s.TimeUtc.ToLocalTime(),
+                    TaskName = s.TaskName,
+                    TaskPath = s.TaskPath,
+                    Status = "Snoozed",
+                    StatusText = LocalizationService.GetString("Dashboard.Status.Snoozed", "Snoozed"),
+                    Detail = string.Format(
+                        LocalizationService.GetString("Dashboard.Status.SuppressedOrigin", "Suppressed ({0})"), s.Origin)
+                }));
+
+            result.ExecutionEntries = entries.OrderByDescending(e => e.Time).Take(200).ToList();
+
+            // Recently failed tasks card — one row per task, most recent failure first.
+            result.FailedTasks = outcomes
+                .Where(o => o.IsFailure)
+                .GroupBy(o => o.TaskPath, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.OrderByDescending(o => o.Time).First())
+                .OrderByDescending(o => o.Time)
+                .Take(10)
+                .Select(o => new FailedTaskInfo
+                {
+                    Name = o.TaskName,
+                    Path = o.TaskPath,
+                    LastRunTime = o.Time.ToString("g"),
+                    ErrorMessage = o.IsLaunchFailure
+                        ? LocalizationService.GetString("Dashboard.Status.LaunchFailed", "Task Scheduler could not launch the action")
+                        : string.Format(LocalizationService.GetString("Dashboard.Status.ExitCode", "Exit code {0}"),
+                                        o.ExitCodeText),
+                    ExitCode = o.ExitCodeText
+                })
+                .ToList();
+
+            // Activity stream (legacy card) — most recent records of any kind.
+            result.RecentHistory = records
+                .OrderByDescending(r => r.Time)
+                .Take(15)
+                .Select(r => new TaskHistoryEntry
+                {
+                    Time = r.Time.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Result = $"{r.TaskName} — {DescribeEvent(r)}",
+                    ExitCode = r.ResultCode.HasValue ? r.ExitCodeText : "",
+                    TaskPath = r.TaskPath,
+                    TaskName = r.TaskName,
+                    EventId = r.EventId
+                })
+                .ToList();
+
+            result.Upcoming = tasks.Where(t => t.NextRunTime.HasValue && t.IsEnabled)
+                                   .OrderBy(t => t.NextRunTime)
+                                   .Take(5)
+                                   .ToList();
+
+            return result;
+        }
+
+        private static string DescribeEvent(TaskRunRecord r) => r.EventId switch
+        {
+            100 => LocalizationService.GetString("Dashboard.Event.Started", "Started"),
+            102 => LocalizationService.GetString("Dashboard.Event.Finished", "Finished"),
+            103 => LocalizationService.GetString("Dashboard.Event.StartFailed", "Failed to start"),
+            201 => r.ResultCode.GetValueOrDefault() == 0
+                    ? LocalizationService.GetString("Dashboard.Status.Success", "Success")
+                    : string.Format(LocalizationService.GetString("Dashboard.Status.ExitCode", "Exit code {0}"), r.ExitCodeText),
+            203 => LocalizationService.GetString("Dashboard.Event.LaunchFailed", "Action launch failed"),
+            _ => $"Event {r.EventId}"
+        };
+
+        private static string FormatDuration(TimeSpan span)
+        {
+            if (span.TotalHours >= 1) return $"{(int)span.TotalHours}h {span.Minutes}m";
+            if (span.TotalMinutes >= 1) return $"{(int)span.TotalMinutes}m {span.Seconds}s";
+            return $"{span.TotalSeconds:0.#}s";
+        }
+
+        private List<RunningTaskInfo> BuildRunningTaskInfos(List<ScheduledTaskModel> runningTasks)
+        {
+            var runningInfos = new List<RunningTaskInfo>();
+            foreach (var task in runningTasks)
+            {
+                var actionCmd = task.ActionCommand;
+                var processName = "";
+                var processAlive = false;
+                var processStatus = LocalizationService.GetString("Dashboard.Unknown", "Unknown");
+
+                if (!string.IsNullOrEmpty(actionCmd))
+                {
+                    // Extract process name from command (e.g. "C:\Python\python.exe" -> "python")
+                    processName = System.IO.Path.GetFileNameWithoutExtension(actionCmd.Trim('"'));
+                    try
+                    {
+                        var procs = Process.GetProcessesByName(processName);
+                        processAlive = procs.Length > 0;
+                        processStatus = processAlive ? $"Process active ({procs.Length} instance{(procs.Length > 1 ? "s" : "")})" : "Process not found";
+                        foreach (var p in procs) p.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        processStatus = "Unable to check";
+                        LogService.Warn($"Could not inspect process '{processName}' for task '{task.Path}': {ex.Message}");
+                    }
+                }
+
+                var duration = "";
+                if (task.LastRunTime.HasValue)
+                {
+                    var elapsed = DateTime.Now - task.LastRunTime.Value;
+                    if (elapsed.TotalDays >= 1) duration = $"{(int)elapsed.TotalDays}d {elapsed.Hours}h";
+                    else if (elapsed.TotalHours >= 1) duration = $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m";
+                    else duration = $"{(int)elapsed.TotalMinutes}m";
+                }
+
+                runningInfos.Add(new RunningTaskInfo
+                {
+                    Name = task.Name,
+                    Path = task.Path,
+                    ActionCommand = string.IsNullOrEmpty(processName) ? actionCmd : processName,
+                    RunningDuration = duration,
+                    ProcessAlive = processAlive,
+                    ProcessStatus = processStatus
+                });
+            }
+            return runningInfos;
+        }
+
+        private void ApplyExecutionFilter()
+        {
+            ExecutionLog.Clear();
+            IEnumerable<ExecutionLogEntry> source = _allExecutionEntries;
+
+            if (!string.Equals(_executionFilter, "All", StringComparison.OrdinalIgnoreCase))
+                source = source.Where(e => string.Equals(e.Status, _executionFilter, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var entry in source.Take(100))
+                ExecutionLog.Add(entry);
+
+            OnPropertyChanged(nameof(NoExecutionEntriesVisible));
         }
 
         public void NavigateToTask(string taskPath)

@@ -225,6 +225,18 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock x:Name="SysPipelineTitle" Text="Task Pipelines" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                                    <TextBlock x:Name="SysPipelineDesc" Text="Watch the Task Scheduler event log and start the downstream tasks configured under a task's Completion Actions." Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleSwitch x:Name="TaskPipelinesToggle" Grid.Column="1" VerticalAlignment="Center"
+                                             OffContent="" OnContent="" IsOn="True" Toggled="TaskPipelinesToggle_Toggled"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource SettingsCardStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
                                     <TextBlock x:Name="SysHiddenTitle" Text="Show Hidden Tasks" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                                     <TextBlock x:Name="SysHiddenDesc" Text="Display tasks that are marked as hidden in the Windows Task Scheduler." Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" TextWrapping="Wrap"/>
                                 </StackPanel>

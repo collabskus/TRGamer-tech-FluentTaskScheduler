@@ -26,6 +26,14 @@ namespace FluentTaskScheduler.Services
         private const int CMD_SHOW_BASE  = 10;  // 10..59  → Show window[i]
         private const int CMD_CLOSE_BASE = 60;  // 60..109 → Close window[i]
 
+        // Snooze submenu
+        private const int CMD_SNOOZE_30M    = 200;
+        private const int CMD_SNOOZE_1H     = 201;
+        private const int CMD_SNOOZE_3H     = 202;
+        private const int CMD_SNOOZE_REBOOT = 203;
+        private const int CMD_SNOOZE_CUSTOM = 204;
+        private const int CMD_SNOOZE_CANCEL = 205;
+
         // Win32 Structs
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct NOTIFYICONDATA
@@ -61,6 +69,7 @@ namespace FluentTaskScheduler.Services
         private const uint MF_STRING    = 0x00000000;
         private const uint MF_SEPARATOR = 0x00000800;
         private const uint MF_GRAYED    = 0x00000001;
+        private const uint MF_POPUP     = 0x00000010;
         private const uint TPM_RETURNCMD = 0x0100;
         private const uint TPM_NONOTIFY  = 0x0080;
 
@@ -79,6 +88,7 @@ namespace FluentTaskScheduler.Services
         private static bool _isCreated = false;
         private static IntPtr _hwnd = IntPtr.Zero;
         private static int _badgeCount = -1;
+        private static bool _badgeSnoozed = false;
         private static IntPtr _badgeIcon = IntPtr.Zero;
 
         // ── Public API ──────────────────────────────────────────────────────────────
@@ -93,6 +103,9 @@ namespace FluentTaskScheduler.Services
 
         /// <summary>Fired when the user picks "Exit All" from the tray menu.</summary>
         public static event Action? ExitRequested;
+
+        /// <summary>Fired when the user picks "Custom Time..." from the snooze submenu.</summary>
+        public static event Action? CustomSnoozeRequested;
 
         // ── Lifecycle ───────────────────────────────────────────────────────────────
         public static void Initialize(IntPtr hwnd)
@@ -118,8 +131,8 @@ namespace FluentTaskScheduler.Services
                 uID = 1,
                 uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP,
                 uCallbackMessage = WM_TRAYICON,
-                hIcon = _hIcon,
-                szTip = "FluentTaskScheduler"
+                hIcon = _badgeIcon != IntPtr.Zero ? _badgeIcon : _hIcon,
+                szTip = BuildTooltip()
             };
 
             Shell_NotifyIcon(NIM_ADD, ref _nid);
@@ -151,9 +164,24 @@ namespace FluentTaskScheduler.Services
         /// <summary>Overlays a running-task count badge on the tray icon. Pass 0 to restore the plain icon.</summary>
         public static void UpdateBadge(int runningCount)
         {
-            if (_badgeCount == runningCount) return;
+            bool snoozed = SnoozeService.IsActive;
+            if (_badgeCount == runningCount && _badgeSnoozed == snoozed) return;
             _badgeCount = runningCount;
+            _badgeSnoozed = snoozed;
+            RedrawIcon();
+        }
 
+        /// <summary>Re-renders the icon and tooltip after the global snooze state changed.</summary>
+        public static void RefreshSnoozeState()
+        {
+            bool snoozed = SnoozeService.IsActive;
+            if (_badgeSnoozed == snoozed) { UpdateTooltip(); return; }
+            _badgeSnoozed = snoozed;
+            RedrawIcon();
+        }
+
+        private static void RedrawIcon()
+        {
             // Clean up previous badge icon
             if (_badgeIcon != IntPtr.Zero) { DestroyIcon(_badgeIcon); _badgeIcon = IntPtr.Zero; }
 
@@ -173,7 +201,19 @@ namespace FluentTaskScheduler.Services
                     // Draw base icon
                     g.DrawIcon(baseIcon, new System.Drawing.Rectangle(0, 0, 32, 32));
 
-                    if (runningCount > 0)
+                    if (_badgeSnoozed)
+                    {
+                        // Pause badge (top-left) so a paused app is recognisable at a glance
+                        const int PauseSize = 15;
+                        var rect = new System.Drawing.Rectangle(0, 0, PauseSize, PauseSize);
+                        using var amber = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(255, 202, 128, 0));
+                        g.FillEllipse(amber, rect);
+                        using var bar = new System.Drawing.SolidBrush(System.Drawing.Color.White);
+                        g.FillRectangle(bar, 4.5f, 3.5f, 2.2f, 8f);
+                        g.FillRectangle(bar, 8.3f, 3.5f, 2.2f, 8f);
+                    }
+
+                    if (_badgeCount > 0)
                     {
                         // Badge circle in bottom-right corner
                         const int BadgeSize = 14;
@@ -182,8 +222,8 @@ namespace FluentTaskScheduler.Services
                             bx, by, BadgeSize, BadgeSize);
 
                         // Badge number
-                        string text = runningCount > 9 ? "9+" : runningCount.ToString();
-                        using var font = new System.Drawing.Font("Segoe UI", runningCount > 9 ? 6f : 7.5f,
+                        string text = _badgeCount > 9 ? "9+" : _badgeCount.ToString();
+                        using var font = new System.Drawing.Font("Segoe UI", _badgeCount > 9 ? 6f : 7.5f,
                             System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
                         var textSize = g.MeasureString(text, font);
                         g.DrawString(text, font, System.Drawing.Brushes.White,
@@ -193,12 +233,31 @@ namespace FluentTaskScheduler.Services
 
                     _badgeIcon = bmp.GetHicon();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogService.Error("Failed to render the tray icon badge.", ex);
+                }
             }
 
             if (!_isCreated) return;
             _nid.hIcon = _badgeIcon != IntPtr.Zero ? _badgeIcon : _hIcon;
+            _nid.szTip = BuildTooltip();
             Shell_NotifyIcon(NIM_MODIFY, ref _nid);
+        }
+
+        private static void UpdateTooltip()
+        {
+            if (!_isCreated) return;
+            _nid.szTip = BuildTooltip();
+            Shell_NotifyIcon(NIM_MODIFY, ref _nid);
+        }
+
+        private static string BuildTooltip()
+        {
+            string tip = "FluentTaskScheduler";
+            if (SnoozeService.IsActive) tip += "\n" + SnoozeService.StatusText;
+            // NOTIFYICONDATA.szTip is a fixed 128-char buffer — overflowing it corrupts the struct.
+            return tip.Length > 127 ? tip.Substring(0, 127) : tip;
         }
 
         // ── Context Menu ────────────────────────────────────────────────────────────
@@ -224,6 +283,9 @@ namespace FluentTaskScheduler.Services
                 AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
             }
 
+            AppendSnoozeMenu(hMenu);
+            AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
+
             AppendMenu(hMenu, MF_STRING, (IntPtr)CMD_NEW_WINDOW, "New Window");
             AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
             AppendMenu(hMenu, MF_STRING, (IntPtr)CMD_EXIT, "Exit All");
@@ -231,6 +293,7 @@ namespace FluentTaskScheduler.Services
             GetCursorPos(out POINT pt);
             SetForegroundWindow(_hwnd);
             int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_NONOTIFY, pt.X, pt.Y, 0, _hwnd, IntPtr.Zero);
+            // DestroyMenu also destroys the submenus attached with MF_POPUP.
             DestroyMenu(hMenu);
 
             if (cmd >= CMD_SHOW_BASE && cmd < CMD_SHOW_BASE + hidden.Count)
@@ -241,6 +304,54 @@ namespace FluentTaskScheduler.Services
                 NewWindowRequested?.Invoke();
             else if (cmd == CMD_EXIT)
                 ExitRequested?.Invoke();
+            else
+                HandleSnoozeCommand(cmd);
+        }
+
+        private static void AppendSnoozeMenu(IntPtr hMenu)
+        {
+            string L(string key, string fallback) => LocalizationService.GetString(key, fallback);
+
+            AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
+
+            if (SnoozeService.IsActive)
+            {
+                AppendMenu(hMenu, MF_STRING | MF_GRAYED, IntPtr.Zero, SnoozeService.StatusText);
+                AppendMenu(hMenu, MF_STRING, (IntPtr)CMD_SNOOZE_CANCEL, L("Snooze.Menu.Resume", "Resume All Tasks"));
+                return;
+            }
+
+            IntPtr hSub = CreatePopupMenu();
+            AppendMenu(hSub, MF_STRING, (IntPtr)CMD_SNOOZE_30M, L("Snooze.Duration.30m", "30 Minutes"));
+            AppendMenu(hSub, MF_STRING, (IntPtr)CMD_SNOOZE_1H, L("Snooze.Duration.1h", "1 Hour"));
+            AppendMenu(hSub, MF_STRING, (IntPtr)CMD_SNOOZE_3H, L("Snooze.Duration.3h", "3 Hours"));
+            AppendMenu(hSub, MF_STRING, (IntPtr)CMD_SNOOZE_REBOOT, L("Snooze.Duration.Reboot", "Until Next Reboot"));
+            AppendMenu(hSub, MF_SEPARATOR, IntPtr.Zero, string.Empty);
+            AppendMenu(hSub, MF_STRING, (IntPtr)CMD_SNOOZE_CUSTOM, L("Snooze.Duration.Custom", "Custom Time..."));
+
+            AppendMenu(hMenu, MF_STRING | MF_POPUP, hSub, L("Snooze.Menu.SnoozeAll", "Snooze All Tasks..."));
+        }
+
+        private static void HandleSnoozeCommand(int cmd)
+        {
+            try
+            {
+                switch (cmd)
+                {
+                    case CMD_SNOOZE_30M: SnoozeService.Snooze(TimeSpan.FromMinutes(30)); break;
+                    case CMD_SNOOZE_1H: SnoozeService.Snooze(TimeSpan.FromHours(1)); break;
+                    case CMD_SNOOZE_3H: SnoozeService.Snooze(TimeSpan.FromHours(3)); break;
+                    case CMD_SNOOZE_REBOOT: SnoozeService.SnoozeUntilReboot(); break;
+                    case CMD_SNOOZE_CANCEL: SnoozeService.Cancel(); break;
+                    case CMD_SNOOZE_CUSTOM: CustomSnoozeRequested?.Invoke(); break;
+                    default: return;
+                }
+                RefreshSnoozeState();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"Tray snooze command {cmd} failed.", ex);
+            }
         }
 
         // ── Win32 message sink ──────────────────────────────────────────────────────

@@ -77,6 +77,7 @@ namespace FluentTaskScheduler
             TrayIconToggle.IsOn = SettingsService.EnableTrayIcon;
             SmoothScrollingToggle.IsOn = SettingsService.SmoothScrolling;
             ShowHiddenTasksToggle.IsOn = SettingsService.ShowHiddenTasks;
+            TaskPipelinesToggle.IsOn = SettingsService.EnableTaskPipelines;
 
             // Advanced
             ConfirmDeleteToggle.IsOn = SettingsService.ConfirmDelete;
@@ -228,6 +229,9 @@ namespace FluentTaskScheduler
             SysTrayDesc.Text = L("Settings.Sys.Tray.Desc", "Hide the window to the system tray instead of closing.");
             SysSmoothTitle.Text = L("Settings.Sys.Smooth.Title", "Smooth Scrolling");
             SysSmoothDesc.Text = L("Settings.Sys.Smooth.Desc", "Enable inertia-based scrolling throughout the app.");
+            SysPipelineTitle.Text = L("Settings.Sys.Pipelines.Title", "Task Pipelines");
+            SysPipelineDesc.Text = L("Settings.Sys.Pipelines.Desc",
+                "Watch the Task Scheduler event log and start the downstream tasks configured under a task's Completion Actions.");
             SysHiddenTitle.Text = L("Settings.Sys.Hidden.Title", "Show Hidden Tasks");
             SysHiddenDesc.Text = L("Settings.Sys.Hidden.Desc", "Display tasks that are marked as hidden in the Windows Task Scheduler.");
 
@@ -358,6 +362,15 @@ namespace FluentTaskScheduler
             LogService.Info($"Show Hidden Tasks: {(ShowHiddenTasksToggle.IsOn ? "enabled" : "disabled")}");
             // Trigger refresh in main view if it exists
             MainPage.Current?.ViewModel.ApplyFilters();
+        }
+
+        private void TaskPipelinesToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!_isLoaded) return;
+            SettingsService.EnableTaskPipelines = TaskPipelinesToggle.IsOn;
+            // Start/stop the event-log watcher immediately so no restart is needed.
+            TaskPipelineService.ApplyEnabledSetting();
+            LogService.Info($"Task Pipelines: {(TaskPipelinesToggle.IsOn ? "enabled" : "disabled")}");
         }
 
         // ── Advanced ───────────────────────────────────────────────────────────

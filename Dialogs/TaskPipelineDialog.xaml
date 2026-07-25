@@ -1,0 +1,82 @@
+<ContentDialog
+    x:Class="FluentTaskScheduler.Dialogs.TaskPipelineDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:FluentTaskScheduler.Dialogs"
+    DefaultButton="Primary"
+    PrimaryButtonClick="Dialog_PrimaryButtonClick">
+
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">900</x:Double>
+    </ContentDialog.Resources>
+
+    <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto" IsScrollInertiaEnabled="False">
+        <StackPanel Spacing="14" Width="700" Margin="0,8,12,8">
+
+            <InfoBar x:Name="PipelineInfoBar" IsOpen="True" IsClosable="False" Severity="Informational"/>
+
+            <InfoBar x:Name="PipelineWarningBar" IsOpen="False" IsClosable="True" Severity="Warning"/>
+
+            <ToggleSwitch x:Name="PipelineEnabledSwitch" Toggled="PipelineEnabled_Toggled"/>
+
+            <StackPanel x:Name="PipelineBodyPanel" Spacing="16">
+
+                <!-- On success -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="OnSuccessHeader" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="SuccessTaskPicker" HorizontalAlignment="Stretch" DisplayMemberPath="DisplayName"/>
+                        <Button x:Name="AddSuccessButton" Grid.Column="1" Click="AddSuccess_Click"/>
+                    </Grid>
+
+                    <ListView x:Name="SuccessList" Height="120" SelectionMode="Single"
+                              BorderThickness="1" BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" CornerRadius="4">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis"/>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <Button x:Name="RemoveSuccessButton" Click="RemoveSuccess_Click" HorizontalAlignment="Left"/>
+                </StackPanel>
+
+                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                <!-- On failure -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE711;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="OnFailureHeader" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="FailureTaskPicker" HorizontalAlignment="Stretch" DisplayMemberPath="DisplayName"/>
+                        <Button x:Name="AddFailureButton" Grid.Column="1" Click="AddFailure_Click"/>
+                    </Grid>
+
+                    <ListView x:Name="FailureList" Height="120" SelectionMode="Single"
+                              BorderThickness="1" BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" CornerRadius="4">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis"/>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <Button x:Name="RemoveFailureButton" Click="RemoveFailure_Click" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

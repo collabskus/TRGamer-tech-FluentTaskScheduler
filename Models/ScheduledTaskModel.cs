@@ -279,5 +279,26 @@ namespace FluentTaskScheduler.Models
             get => _isReadOnlyFallback;
             set { if (_isReadOnlyFallback != value) { _isReadOnlyFallback = value; OnPropertyChanged(); } }
         }
+
+        private TaskPipeline _pipeline = new();
+        /// <summary>Completion actions (task chaining) configured for this task.</summary>
+        public TaskPipeline Pipeline
+        {
+            get => _pipeline;
+            set
+            {
+                _pipeline = value ?? new TaskPipeline();
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasPipeline));
+                OnPropertyChanged(nameof(PipelineSummary));
+            }
+        }
+
+        public bool HasPipeline => _pipeline.IsActive;
+
+        /// <summary>Short "2 on success · 1 on failure" style label for list rows and the edit dialog.</summary>
+        public string PipelineSummary => _pipeline.HasAnyTargets
+            ? $"{_pipeline.OnSuccessTasks.Count} / {_pipeline.OnFailureTasks.Count}"
+            : "";
     }
 }

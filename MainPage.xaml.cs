@@ -33,6 +33,9 @@ namespace FluentTaskScheduler
         private bool _isEditMode = false;
         private bool _isPopulatingDetails = false;
         private bool _isFromTemplate = false;
+
+        /// <summary>Pipeline being edited in the currently open task dialog.</summary>
+        private TaskPipeline _tempPipeline = new();
         
         // Current folder path for new task creation
         private string _currentFolderPath = "\\";
@@ -56,16 +59,164 @@ namespace FluentTaskScheduler
                 ViewModel.SearchText = SearchBox.Text;
             };
             
-            NavView.SelectedItem = NavView.FooterMenuItems[0];  // Select "All Tasks" 
+            NavView.SelectedItem = NavView.FooterMenuItems[0];  // Select "All Tasks"
             ApplyLocalizedUi();
+
+            SnoozeService.SnoozeChanged += SnoozeService_SnoozeChanged;
+            TrayIconService.CustomSnoozeRequested += TrayIconService_CustomSnoozeRequested;
+            UpdateSnoozeBanner();
         }
 
         private void MainPage_Unloaded(object sender, RoutedEventArgs e)
         {
             LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
+            SnoozeService.SnoozeChanged -= SnoozeService_SnoozeChanged;
+            TrayIconService.CustomSnoozeRequested -= TrayIconService_CustomSnoozeRequested;
             if (ReferenceEquals(Current, this))
             {
                 Current = null;
+            }
+        }
+
+        // ========================================================================================================
+        // Global Snooze (v1.9)
+        // ========================================================================================================
+
+        private void SnoozeService_SnoozeChanged(object? sender, EventArgs e)
+        {
+            DispatcherQueue?.TryEnqueue(() =>
+            {
+                UpdateSnoozeBanner();
+                TrayIconService.RefreshSnoozeState();
+            });
+        }
+
+        private void TrayIconService_CustomSnoozeRequested()
+        {
+            DispatcherQueue?.TryEnqueue(() => ShowSnoozeDialog());
+        }
+
+        private void UpdateSnoozeBanner()
+        {
+            bool active = SnoozeService.IsActive;
+            SnoozeBanner.IsOpen = active;
+            if (!active) return;
+
+            SnoozeBanner.Title = SnoozeService.StatusText;
+            SnoozeBanner.Message = SettingsService.SnoozeSuspendsScheduledTasks
+                ? L("Snooze.Banner.Suspended", "Scheduled triggers are suspended and manual runs are blocked. Tasks are re-enabled when the snooze ends.")
+                : L("Snooze.Banner.ManualOnly", "Runs started from this app are blocked. Windows will still fire scheduled triggers — enable \"Suspend scheduled triggers\" when snoozing to stop those too.");
+            SnoozeBannerResumeBtn.Content = L("Snooze.Menu.Resume", "Resume All Tasks");
+        }
+
+        private void SnoozeResume_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                SnoozeService.Cancel();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Failed to resume from global snooze.", ex);
+                _ = ShowErrorDialog(L("Snooze.Error.Resume", "Could not resume all tasks: ") + ex.Message);
+            }
+            UpdateSnoozeBanner();
+            TrayIconService.RefreshSnoozeState();
+        }
+
+        private async void ShowSnoozeDialog()
+        {
+            if (this.Content?.XamlRoot == null) return;
+
+            if (SnoozeService.IsActive)
+            {
+                // Already snoozing — offer to resume instead of stacking another window.
+                var confirm = new ContentDialog
+                {
+                    Title = L("Snooze.Dialog.ActiveTitle", "Global Snooze is active"),
+                    Content = SnoozeService.StatusText,
+                    PrimaryButtonText = L("Snooze.Menu.Resume", "Resume All Tasks"),
+                    CloseButtonText = L("Dialog.Common.Close", "Close"),
+                    XamlRoot = this.Content.XamlRoot,
+                    RequestedTheme = SettingsService.Theme
+                };
+                if (await confirm.ShowAsync() == ContentDialogResult.Primary) SnoozeResume_Click(this, new RoutedEventArgs());
+                return;
+            }
+
+            SnoozeDialog.Title = L("Snooze.Dialog.Title", "Snooze All Tasks");
+            SnoozeDialog.PrimaryButtonText = L("Snooze.Dialog.Confirm", "Snooze");
+            SnoozeDialog.CloseButtonText = L("Dialog.Common.Cancel", "Cancel");
+            SnoozeDialogIntro.Text = L("Snooze.Dialog.Intro",
+                "While snoozed, FluentTaskScheduler refuses to start any task — including chained pipeline runs.");
+            Snooze30m.Content = L("Snooze.Duration.30m", "30 Minutes");
+            Snooze1h.Content = L("Snooze.Duration.1h", "1 Hour");
+            Snooze3h.Content = L("Snooze.Duration.3h", "3 Hours");
+            SnoozeReboot.Content = L("Snooze.Duration.Reboot", "Until Next Reboot");
+            SnoozeCustom.Content = L("Snooze.Duration.Custom", "Custom Time...");
+            SnoozeSuspendTriggers.Content = L("Snooze.SuspendTriggers", "Also suspend scheduled triggers");
+            SnoozeSuspendHint.Text = L("Snooze.SuspendTriggersHint",
+                "Disables every enabled task through the Task Scheduler API and re-enables exactly those tasks when the snooze ends. Protected system tasks are skipped.");
+
+            SnoozeSuspendTriggers.IsChecked = SettingsService.SnoozeSuspendsScheduledTasks;
+            Snooze30m.IsChecked = true;
+            SnoozeCustomDate.Date = DateTimeOffset.Now;
+            SnoozeCustomTime.Time = DateTime.Now.AddHours(2).TimeOfDay;
+            SnoozeDialogError.IsOpen = false;
+
+            SnoozeDialog.XamlRoot = this.Content.XamlRoot;
+            SnoozeDialog.RequestedTheme = SettingsService.Theme;
+            await SnoozeDialog.ShowAsync();
+        }
+
+        private void SnoozeCustom_Changed(object sender, RoutedEventArgs e)
+        {
+            bool custom = SnoozeCustom.IsChecked == true;
+            if (SnoozeCustomDate != null) SnoozeCustomDate.IsEnabled = custom;
+            if (SnoozeCustomTime != null) SnoozeCustomTime.IsEnabled = custom;
+        }
+
+        private void SnoozeDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            try
+            {
+                // Persist the suspension preference first: SnoozeService reads it while activating.
+                SettingsService.SnoozeSuspendsScheduledTasks = SnoozeSuspendTriggers.IsChecked == true;
+
+                if (SnoozeReboot.IsChecked == true)
+                {
+                    SnoozeService.SnoozeUntilReboot();
+                }
+                else if (SnoozeCustom.IsChecked == true)
+                {
+                    var end = SnoozeCustomDate.Date.Date + SnoozeCustomTime.Time;
+                    if (end <= DateTime.Now)
+                    {
+                        args.Cancel = true;
+                        SnoozeDialogError.Message = L("Snooze.Error.PastTime", "Pick a time in the future.");
+                        SnoozeDialogError.IsOpen = true;
+                        return;
+                    }
+                    SnoozeService.SnoozeUntilLocalTime(end);
+                }
+                else
+                {
+                    int minutes = 30;
+                    foreach (var rb in new[] { Snooze30m, Snooze1h, Snooze3h })
+                        if (rb.IsChecked == true && int.TryParse(rb.Tag?.ToString(), out int m)) minutes = m;
+
+                    SnoozeService.Snooze(TimeSpan.FromMinutes(minutes));
+                }
+
+                UpdateSnoozeBanner();
+                TrayIconService.RefreshSnoozeState();
+            }
+            catch (Exception ex)
+            {
+                args.Cancel = true;
+                LogService.Error("Failed to start global snooze from the dialog.", ex);
+                SnoozeDialogError.Message = ex.Message;
+                SnoozeDialogError.IsOpen = true;
             }
         }
 
@@ -84,6 +235,8 @@ namespace FluentTaskScheduler
             NavDashboard.Content = L("Main.Nav.Dashboard", "Dashboard");
             NavQuickActions.Content = L("Main.Nav.QuickActions", "Quick Actions");
             NavScriptLibrary.Content = L("Main.Nav.ScriptLibrary", "Script Library");
+            NavTemplates.Content = L("Main.Nav.Templates", "Task Templates");
+            NavSnooze.Content = L("Main.Nav.Snooze", "Snooze All Tasks");
             NavAdd.Content = L("Main.Nav.NewTask", "New Task");
             NavAllTasks.Content = L("Main.Nav.AllTasks", "All Tasks");
             NavRunning.Content = L("Main.Nav.Running", "Running");
@@ -124,6 +277,9 @@ namespace FluentTaskScheduler
             DlgCategoryLabel.Text = L("Dialog.Category", "Category");
             DlgTagsLabel.Text = L("Dialog.Tags", "Tags");
             DlgEnabledLabel.Text = L("Dialog.Enabled", "Enabled");
+            DlgPipelineLabel.Text = L("Pipeline.SectionTitle", "Completion Actions");
+            ConfigurePipelineButton.Content = L("Pipeline.Configure", "Configure...");
+            UpdatePipelineSummaryLabel();
 
             // Trigger types
             DlgTriggerTypeLabel.Text = L("Dialog.TriggerType", "Trigger Type");
@@ -314,6 +470,7 @@ namespace FluentTaskScheduler
                     "Dashboard" => L("Main.Header.Dashboard", "Dashboard"),
                     "QuickActions" => L("Main.Header.QuickActions", "Quick Actions"),
                     "ScriptLibrary" => L("Main.Header.ScriptLibrary", "Script Library"),
+                    "Templates" => L("Main.Header.Templates", "Task Templates"),
                     "ScriptEditor" => L("Main.Header.ScriptEditor", "Script Editor"),
                     "settings" => L("Main.Header.Settings", "Settings"),
                     _ => L("Main.Header.ScheduledTasks", "Scheduled Tasks")
@@ -328,6 +485,115 @@ namespace FluentTaskScheduler
         public void OpenCreateTaskFromTemplate(ViewModels.ScriptTemplateModel template) => OpenCreateTaskDialog(template);
         private void NewTaskButton_Click(object sender, RoutedEventArgs e) => OpenCreateTaskDialog(null);
 
+        // ========================================================================================================
+        // Completion actions / pipelines (v1.9)
+        // ========================================================================================================
+
+        private void UpdatePipelineSummaryLabel()
+        {
+            if (DlgPipelineSummary == null) return;
+
+            if (_tempPipeline == null || !_tempPipeline.HasAnyTargets)
+            {
+                DlgPipelineSummary.Text = L("Pipeline.Summary.None", "No downstream tasks configured.");
+                return;
+            }
+
+            string state = _tempPipeline.IsEnabled
+                ? L("Pipeline.Summary.Enabled", "Enabled")
+                : L("Pipeline.Summary.Disabled", "Disabled");
+
+            DlgPipelineSummary.Text = string.Format(
+                L("Pipeline.Summary.Format", "{0} — {1} on success, {2} on failure"),
+                state, _tempPipeline.OnSuccessTasks.Count, _tempPipeline.OnFailureTasks.Count);
+        }
+
+        private async void ConfigurePipeline_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.Content?.XamlRoot == null) return;
+
+            try
+            {
+                string ownPath = _isEditMode && ViewModel.SelectedTask != null ? ViewModel.SelectedTask.Path : "";
+
+                var available = await System.Threading.Tasks.Task.Run(
+                    () => ViewModel.TaskService.GetAllTasks(recursive: true));
+
+                var dialog = new Dialogs.TaskPipelineDialog(ownPath, _tempPipeline, available)
+                {
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                // WinUI allows only one dialog per XamlRoot, so the editor must step aside.
+                TaskEditDialog.Hide();
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    _tempPipeline = dialog.Result;
+                    UpdatePipelineSummaryLabel();
+                }
+
+                await TaskEditDialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Failed to open the completion actions dialog.", ex);
+                await ShowErrorDialog(L("Pipeline.Error.Open", "Could not open completion actions: ") + ex.Message);
+            }
+        }
+
+        /// <summary>Opens the task editor pre-filled from a built-in task template.</summary>
+        public async void OpenCreateTaskFromTaskTemplate(TaskTemplate template)
+        {
+            if (this.Content?.XamlRoot == null || template == null) return;
+
+            try
+            {
+                try { TaskDetailsDialog.Hide(); } catch { }
+
+                var model = Services.TaskTemplateLibrary.ToTaskModel(template);
+
+                _isEditMode = false;
+                _isFromTemplate = true;
+                _isPopulatingDetails = true;
+                _tempPipeline = new TaskPipeline();
+
+                EditTaskName.Text = model.Name;
+                EditTaskDescription.Text = model.Description;
+                EditTaskAuthor.Text = model.Author;
+                EditTaskCategory.Text = model.Category;
+                EditTaskTags.Text = string.Join(", ", model.Tags);
+                EditTaskEnabled.IsOn = true;
+
+                _tempActions = new ObservableCollection<TaskActionModel>(model.Actions);
+                _tempTriggers = new ObservableCollection<TaskTriggerModel>(model.TriggersList);
+                ActionList.ItemsSource = _tempActions;
+                TriggerList.ItemsSource = _tempTriggers;
+
+                EditTaskRunWithHighestPrivileges.IsChecked = model.RunWithHighestPrivileges;
+                EditTaskRunIfMissed.IsChecked = model.RunIfMissed;
+                EditTaskOnlyIfIdle.IsChecked = model.OnlyIfIdle;
+                EditTaskOnlyIfAC.IsChecked = model.OnlyIfAC;
+                EditTaskWakeToRun.IsChecked = model.WakeToRun;
+
+                PopulateNetworkList();
+                UpdatePipelineSummaryLabel();
+
+                _isPopulatingDetails = false;
+                ActionList.SelectedIndex = 0;
+                TriggerList.SelectedIndex = 0;
+
+                EditTaskErrorBar.IsOpen = false;
+                TaskEditDialog.XamlRoot = this.Content.XamlRoot;
+                await TaskEditDialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"Failed to open the editor for template '{template.Id}'.", ex);
+                await ShowErrorDialog(L("Templates.Error.Deploy", "Could not open this template: ") + ex.Message);
+            }
+        }
+
         private async void OpenCreateTaskDialog(ViewModels.ScriptTemplateModel? template)
         {
             if (this.Content?.XamlRoot == null) return;
@@ -336,7 +602,9 @@ namespace FluentTaskScheduler
             try { TaskDetailsDialog.Hide(); } catch { }
             _isEditMode = false;
             _isFromTemplate = template != null;
-            
+            _tempPipeline = new TaskPipeline();
+            UpdatePipelineSummaryLabel();
+
             EditTaskName.Text = template?.Name ?? "";
             EditTaskDescription.Text = template?.Description ?? "";
             EditTaskAuthor.Text = Environment.UserName;
@@ -614,6 +882,14 @@ namespace FluentTaskScheduler
                     ContentFrame.Navigate(typeof(DashboardPage));
                     FolderTreeView.SelectedItem = null;
                 }
+                else if (tag == "Templates")
+                {
+                    NavView.Header = L("Main.Header.Templates", "Task Templates");
+                    TasksViewGrid.Visibility = Visibility.Collapsed;
+                    ContentFrame.Visibility = Visibility.Visible;
+                    ContentFrame.Navigate(typeof(TaskTemplatesPage), this);
+                    FolderTreeView.SelectedItem = null;
+                }
                 else if (tag == "ScriptLibrary")
                 {
                     NavView.Header = L("Main.Header.ScriptLibrary", "Script Library");
@@ -656,9 +932,16 @@ namespace FluentTaskScheduler
 
         private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
         {
-            if (args.InvokedItemContainer is NavigationViewItem item && item.Tag?.ToString() == "Add") 
+            if (args.InvokedItemContainer is not NavigationViewItem item) return;
+
+            switch (item.Tag?.ToString())
             {
-                NewTaskButton_Click(sender, new RoutedEventArgs());
+                case "Add":
+                    NewTaskButton_Click(sender, new RoutedEventArgs());
+                    break;
+                case "Snooze":
+                    ShowSnoozeDialog();
+                    break;
             }
         }
 
@@ -980,6 +1263,13 @@ namespace FluentTaskScheduler
                 _ = WatchTaskUntilFinished(ViewModel.SelectedTask);
                 _ = RefreshTaskHistoryAsync(ViewModel.SelectedTask); // Refresh to show "Task Started"
             }
+            catch (TaskSnoozedException ex)
+            {
+                // Snooze is a deliberate refusal, not an error the user needs a stack for.
+                ViewModel.SelectedTask.State = ViewModel.SelectedTask.IsEnabled ? "Ready" : "Disabled";
+                ViewModel.SelectedTask.IsRunning = false;
+                _ = ShowErrorDialog(ex.Message);
+            }
             catch (Exception ex) { _ = ShowErrorDialog(ex.Message); }
         }
 
@@ -1163,7 +1453,9 @@ namespace FluentTaskScheduler
             _isEditMode = true;
             _isPopulatingDetails = true;
             _isFromTemplate = false;
-            
+            _tempPipeline = ViewModel.SelectedTask.Pipeline?.Clone() ?? new TaskPipeline();
+            UpdatePipelineSummaryLabel();
+
             // Populate Dialog
             EditTaskName.Text = ViewModel.SelectedTask.Name;
             EditTaskDescription.Text = ViewModel.SelectedTask.Description;
@@ -1306,6 +1598,8 @@ namespace FluentTaskScheduler
             model.ExpirationDate = EditTaskExpires.IsChecked == true
                 ? EditTaskExpirationDate.Date.Date + EditTaskExpirationTime.Time
                 : (DateTime?)null;
+
+            model.Pipeline = _tempPipeline?.Clone() ?? new TaskPipeline();
             
             // Handle folder
             string folder = "\\";
@@ -1335,6 +1629,9 @@ namespace FluentTaskScheduler
                     ViewModel.TaskService.DeleteTask(ViewModel.SelectedTask.Path);
                     LogService.Info($"Renamed task - deleted old task at '{ViewModel.SelectedTask.Path}'");
                 }
+
+                // The pipeline watcher caches configuration; force it to re-read after a save.
+                TaskPipelineService.InvalidatePipelineCache();
 
                 TaskEditDialog.Hide();
                 await ViewModel.LoadTasksAsync();
@@ -1835,12 +2132,22 @@ namespace FluentTaskScheduler
             if (BatchStopBtn != null) BatchStopBtn.IsEnabled = !anyDisabled;
         }
         private void BatchCancel_Click(object sender, RoutedEventArgs e) => TaskListView.SelectedItems.Clear();
-        private void BatchRun_Click(object sender, RoutedEventArgs e)
+        private async void BatchRun_Click(object sender, RoutedEventArgs e)
         {
             // Snapshot selection before anything changes.
             // Set IsRunning=true BEFORE calling RunTask so the ring appears immediately,
             // independently of the volatile State string.
             var tasks = TaskListView.SelectedItems.Cast<ScheduledTaskModel>().ToList();
+
+            if (SnoozeService.IsActive)
+            {
+                foreach (var t in tasks) SnoozeService.RecordSuppressedRun(t.Path, "Manual");
+                await ShowErrorDialog(string.Format(
+                    L("Snooze.Error.BatchBlocked", "{0} task(s) were not started because Global Snooze is active."),
+                    tasks.Count));
+                return;
+            }
+
             foreach (var t in tasks)
             {
                 t.State = "Running";
@@ -1849,7 +2156,11 @@ namespace FluentTaskScheduler
                 {
                     ViewModel.TaskService.RunTask(t.Path);
                 }
-                catch { /* RunTask failed â€“ watcher will correct IsRunning */ }
+                catch (Exception ex)
+                {
+                    // The watcher below corrects IsRunning; log so a silent failure is traceable.
+                    LogService.Error($"Batch run could not start task '{t.Path}'.", ex);
+                }
                 _ = WatchTaskUntilFinished(t);
             }
         }

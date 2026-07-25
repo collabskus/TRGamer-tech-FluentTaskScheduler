@@ -312,11 +312,25 @@ namespace FluentTaskScheduler
             Services.TrayIconService.NewWindowRequested += () =>
                 _windows[0].Win.DispatcherQueue.TryEnqueue(CreateAndRegisterWindow);
 
-            Services.TrayIconService.ExitRequested += () => { Services.TrayIconService.Dispose(); Environment.Exit(0); };
+            Services.TrayIconService.ExitRequested += () =>
+            {
+                // Release the event-log subscription and its handles before tearing the process down.
+                Services.TaskPipelineService.Stop();
+                Services.SnoozeService.Shutdown();
+                Services.ReminderService.Stop();
+                Services.TrayIconService.Dispose();
+                Environment.Exit(0);
+            };
             Services.TrayIconService.UpdateVisibility();
 
             Services.LogService.Info("Application started");
             Services.ReminderService.Start();
+
+            // v1.9: restore/expire any stored global snooze, then start the pipeline watcher.
+            Services.SnoozeService.Initialize();
+            Services.SnoozeService.SnoozeChanged += (s, args) => Services.TrayIconService.RefreshSnoozeState();
+            Services.TrayIconService.RefreshSnoozeState();
+            Services.TaskPipelineService.Start();
 
             // Check for VeloPack auto-updates in the background
             _ = CheckForVeloPackUpdateAsync();

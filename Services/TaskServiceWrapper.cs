@@ -11,6 +11,22 @@ using System.Collections.ObjectModel;
 
 namespace FluentTaskScheduler.Services
 {
+    /// <summary>Thrown when a run request is refused because global snooze is active.</summary>
+    public class TaskSnoozedException : Exception
+    {
+        public string TaskPath { get; }
+
+        public TaskSnoozedException(string taskPath)
+            : base(string.Format(
+                LocalizationService.GetString(
+                    "Snooze.Error.RunBlocked",
+                    "'{0}' was not started because Global Snooze is active."),
+                System.IO.Path.GetFileName(taskPath)))
+        {
+            TaskPath = taskPath;
+        }
+    }
+
     public class TaskServiceWrapper
     {
         public List<ScheduledTaskModel> GetAllTasks(string? folderPath = null, bool recursive = true)
@@ -257,8 +273,28 @@ namespace FluentTaskScheduler.Services
             }
         }
 
-        public void RunTask(string path)
+        /// <summary>
+        /// Raised when <see cref="RunTask"/> refuses to start a task because global snooze is active.
+        /// </summary>
+        public static event EventHandler<string>? RunSuppressedBySnooze;
+
+        /// <summary>
+        /// Starts a task immediately. Throws <see cref="TaskSnoozedException"/> instead of starting
+        /// anything while global snooze is active.
+        /// </summary>
+        public void RunTask(string path) => RunTask(path, "Manual");
+
+        /// <param name="origin">Where the request came from — recorded on the suppression log.</param>
+        public void RunTask(string path, string origin)
         {
+            if (SnoozeService.IsActive)
+            {
+                SnoozeService.RecordSuppressedRun(path, origin);
+                NotificationService.ShowRunSuppressed(System.IO.Path.GetFileName(path));
+                RunSuppressedBySnooze?.Invoke(this, path);
+                throw new TaskSnoozedException(path);
+            }
+
             try
             {
                 using (var ts = new TaskService())
@@ -409,7 +445,7 @@ namespace FluentTaskScheduler.Services
 
         private void ConfigureTaskDefinition(TaskDefinition td, ScheduledTaskModel model)
         {
-            td.RegistrationInfo.Description = UpdateDescriptionWithMetadata(model.Description, model.Category, model.Tags.ToList());
+            td.RegistrationInfo.Description = UpdateDescriptionWithMetadata(model.Description, model.Category, model.Tags.ToList(), model.Pipeline);
             td.RegistrationInfo.Author = model.Author;
             td.Settings.Enabled = model.IsEnabled;
             td.Settings.Hidden = model.IsHidden;
@@ -810,6 +846,114 @@ namespace FluentTaskScheduler.Services
             return history;
         }
 
+        /// <summary>
+        /// Reads every task start/completion record from the Task Scheduler operational log within
+        /// <paramref name="window"/>, in one pass. Parses the raw event XML instead of calling
+        /// <c>FormatDescription()</c> per record, which keeps a full 7-day read responsive.
+        /// </summary>
+        public List<TaskRunRecord> GetRecentRunRecords(TimeSpan window)
+        {
+            var records = new List<TaskRunRecord>();
+            long ms = (long)Math.Max(window.TotalMilliseconds, 60_000);
+
+            try
+            {
+                // Note: EventLogQuery takes raw XPath here, so "<=" must NOT be XML-escaped —
+                // "&lt;=" makes the Event Log service reject the query as invalid.
+                string query =
+                    "*[System[(EventID=100 or EventID=102 or EventID=103 or EventID=201 or EventID=203) " +
+                    $"and TimeCreated[timediff(@SystemTime) <= {ms}]]]";
+
+                var eventsQuery = new EventLogQuery("Microsoft-Windows-TaskScheduler/Operational", PathType.LogName, query);
+                using EventLogReader logReader = new EventLogReader(eventsQuery);
+
+                EventRecord? record;
+                while ((record = logReader.ReadEvent()) != null)
+                {
+                    using (record)
+                    {
+                        var parsed = ParseRunRecord(record);
+                        if (parsed != null) records.Add(parsed);
+                    }
+                }
+            }
+            catch (EventLogNotFoundException ex)
+            {
+                LogService.Error("The Task Scheduler operational log is not available; dashboard analytics will be empty.", ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                LogService.Error("Access denied reading the Task Scheduler operational log for dashboard analytics.", ex);
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Failed to read recent task run records.", ex);
+            }
+
+            return records;
+        }
+
+        /// <summary>Maps one operational-log event onto a <see cref="TaskRunRecord"/>, or null if it carries no task name.</summary>
+        private TaskRunRecord? ParseRunRecord(EventRecord record)
+        {
+            try
+            {
+                var data = ReadEventData(record);
+                if (!data.TryGetValue("TaskName", out var taskName) || string.IsNullOrWhiteSpace(taskName))
+                    return null;
+
+                long? resultCode = null;
+                if (data.TryGetValue("ResultCode", out var rc) && long.TryParse(rc, out long parsedRc))
+                    resultCode = parsedRc;
+
+                // Events 100/102 name the field "InstanceId"; event 201 names it "TaskInstanceId".
+                string instanceId = data.TryGetValue("InstanceId", out var iid) ? iid
+                                  : data.TryGetValue("TaskInstanceId", out var tiid) ? tiid
+                                  : "";
+
+                return new TaskRunRecord
+                {
+                    TaskPath = taskName,
+                    TaskName = System.IO.Path.GetFileName(taskName),
+                    Time = record.TimeCreated ?? DateTime.Now,
+                    EventId = record.Id,
+                    InstanceId = instanceId,
+                    ResultCode = resultCode
+                };
+            }
+            catch (Exception ex)
+            {
+                LogService.Warn($"Skipping unreadable Task Scheduler event record: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Pulls the <c>&lt;EventData&gt;/&lt;Data Name="..."&gt;</c> pairs out of an event.
+        /// Name-based lookup keeps this stable across schema/locale differences, unlike positional
+        /// <c>record.Properties</c> access.
+        /// </summary>
+        internal static Dictionary<string, string> ReadEventData(EventRecord record)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var doc = System.Xml.Linq.XDocument.Parse(record.ToXml());
+                foreach (var element in doc.Descendants())
+                {
+                    if (!string.Equals(element.Name.LocalName, "Data", StringComparison.Ordinal)) continue;
+                    var nameAttr = element.Attribute("Name");
+                    if (nameAttr == null) continue;
+                    result[nameAttr.Value] = element.Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Warn($"Could not parse event XML for record {record.Id}: {ex.Message}");
+            }
+            return result;
+        }
+
         private string GetEventResult(int eventId) => eventId switch
         {
             100 => "Task Started",
@@ -967,15 +1111,19 @@ namespace FluentTaskScheduler.Services
                 {
                     model.Category = metadata.Category ?? "";
                     model.Tags = new ObservableCollection<string>(metadata.Tags ?? new List<string>());
-                    
+                    model.Pipeline = metadata.Pipeline ?? new TaskPipeline();
+
                     // Clean description for UI
                     model.Description = model.Description.Remove(startIndex).Trim();
                 }
             }
-            catch { /* Ignore malformed metadata */ }
+            catch (Exception ex)
+            {
+                LogService.Warn($"Ignoring malformed FTS metadata on task '{model.Path}': {ex.Message}");
+            }
         }
 
-        private string UpdateDescriptionWithMetadata(string description, string category, List<string> tags)
+        private string UpdateDescriptionWithMetadata(string description, string category, List<string> tags, TaskPipeline? pipeline)
         {
             string cleanDescription = description;
             int startIndex = description.IndexOf(MetadataPrefix);
@@ -984,12 +1132,18 @@ namespace FluentTaskScheduler.Services
                 cleanDescription = description.Remove(startIndex).Trim();
             }
 
-            if (string.IsNullOrEmpty(category) && (tags == null || tags.Count == 0))
+            bool hasPipeline = pipeline != null && (pipeline.IsEnabled || pipeline.HasAnyTargets);
+            if (string.IsNullOrEmpty(category) && (tags == null || tags.Count == 0) && !hasPipeline)
             {
                 return cleanDescription;
             }
 
-            var metadata = new TaskMetadata { Category = category, Tags = tags };
+            var metadata = new TaskMetadata
+            {
+                Category = category,
+                Tags = tags,
+                Pipeline = hasPipeline ? pipeline : null
+            };
             string json = JsonSerializer.Serialize(metadata);
             return $"{cleanDescription}\n\n{MetadataPrefix}{json}{MetadataSuffix}".Trim();
         }
@@ -998,6 +1152,7 @@ namespace FluentTaskScheduler.Services
         {
             public string? Category { get; set; }
             public List<string>? Tags { get; set; }
+            public TaskPipeline? Pipeline { get; set; }
         }
 
         // Helpers

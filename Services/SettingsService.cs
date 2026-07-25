@@ -30,6 +30,23 @@ namespace FluentTaskScheduler.Services
         public bool ShowHiddenTasks { get; set; } = true;
         public List<string> SavedCategories { get; set; } = new() { "Work", "Personal", "Maintenance", "System" };
         public List<string> SavedTags { get; set; } = new() { "urgent", "sync", "database", "cleanup" };
+
+        // ── Global snooze ────────────────────────────────────────────────────────
+        public bool IsSnoozed { get; set; } = false;
+        /// <summary>Absolute UTC end of the snooze window. Null when snoozing until reboot.</summary>
+        public DateTime? SnoozeUntilUtc { get; set; } = null;
+        /// <summary>When true the snooze lasts until the machine is restarted instead of a fixed time.</summary>
+        public bool SnoozeUntilReboot { get; set; } = false;
+        /// <summary>Boot timestamp captured when an "until reboot" snooze started, used to detect a restart.</summary>
+        public string SnoozeBootStamp { get; set; } = "";
+        /// <summary>When true, starting a snooze also disables scheduled triggers via the Task Scheduler API.</summary>
+        public bool SnoozeSuspendsScheduledTasks { get; set; } = false;
+        /// <summary>Tasks this app disabled when the current snooze started; re-enabled when it ends.</summary>
+        public List<string> SnoozeDisabledTaskPaths { get; set; } = new();
+
+        // ── Task chaining ────────────────────────────────────────────────────────
+        /// <summary>Master switch for the pipeline watcher that starts downstream tasks on completion.</summary>
+        public bool EnableTaskPipelines { get; set; } = true;
     }
 
     public static class SettingsService
@@ -256,6 +273,63 @@ namespace FluentTaskScheduler.Services
         {
             get => _settings.ShowHiddenTasks;
             set { _settings.ShowHiddenTasks = value; Save(); }
+        }
+
+        // ── Global snooze ────────────────────────────────────────────────────────
+
+        public static bool IsSnoozed
+        {
+            get => _settings.IsSnoozed;
+            set { _settings.IsSnoozed = value; Save(); }
+        }
+
+        public static DateTime? SnoozeUntilUtc
+        {
+            get => _settings.SnoozeUntilUtc;
+            set { _settings.SnoozeUntilUtc = value; Save(); }
+        }
+
+        public static bool SnoozeUntilReboot
+        {
+            get => _settings.SnoozeUntilReboot;
+            set { _settings.SnoozeUntilReboot = value; Save(); }
+        }
+
+        public static string SnoozeBootStamp
+        {
+            get => _settings.SnoozeBootStamp;
+            set { _settings.SnoozeBootStamp = value; Save(); }
+        }
+
+        public static bool SnoozeSuspendsScheduledTasks
+        {
+            get => _settings.SnoozeSuspendsScheduledTasks;
+            set { _settings.SnoozeSuspendsScheduledTasks = value; Save(); }
+        }
+
+        public static List<string> SnoozeDisabledTaskPaths
+        {
+            get => _settings.SnoozeDisabledTaskPaths;
+            set { _settings.SnoozeDisabledTaskPaths = value ?? new List<string>(); Save(); }
+        }
+
+        public static bool EnableTaskPipelines
+        {
+            get => _settings.EnableTaskPipelines;
+            set { _settings.EnableTaskPipelines = value; Save(); }
+        }
+
+        /// <summary>
+        /// Writes several snooze fields in one go so a single Save() hits disk instead of one per property.
+        /// </summary>
+        public static void SaveSnoozeState(bool isSnoozed, DateTime? untilUtc, bool untilReboot, string bootStamp, List<string> disabledPaths)
+        {
+            _settings.IsSnoozed = isSnoozed;
+            _settings.SnoozeUntilUtc = untilUtc;
+            _settings.SnoozeUntilReboot = untilReboot;
+            _settings.SnoozeBootStamp = bootStamp ?? "";
+            _settings.SnoozeDisabledTaskPaths = disabledPaths ?? new List<string>();
+            Save();
         }
 
         public static void ExportSettings(string targetPath)
