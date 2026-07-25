@@ -1,38 +1,46 @@
 # To Do:
 
-## Data-loss / silently corrupts existing data
-1. Script Editor "Save" wipes all saved script templates (`ScriptEditorPage.xaml.cs` `SaveButton_Click` saves from a fresh, unloaded `ScriptLibraryViewModel`, overwriting `user_templates.json`).
-2. Editing an existing task silently clears `OnlyIfAC` / `OnlyIfNetwork` / `WakeToRun` (`MainPage.xaml.cs` `EditTask_Click` never populates them from the task being edited).
-3. Folder rename/move can silently drop a task (`TaskServiceWrapper.CopyFolderContents` swallows copy failures, caller deletes source folder anyway).
-4. "Restart on failure" can be silently dropped on save if `RestartInterval` fails to parse (`ConfigureTaskDefinition`).
-
-## Confirmed — feature doesn't do what it claims
-5. Task expiration date/time (`EditTaskExpires`/`ExpirationDate`/`ExpirationTime`) is completely unwired.
-6. "Stop task if runs longer than" (`EditTaskStopAfter`) is completely unwired.
-7. Idle-trigger duration, Event-trigger fields (Log/Source/EventId), and idle Conditions settings are completely unwired.
-8. History date filter (Today/Yesterday/This Week/All Time) is a no-op.
-9. Dashboard "Run History" chart over-counts failures (treats every non-"Task Completed" event as a failure instead of checking for "Task Failed").
-10. Dashboard chart/recent-activity/failed-list silently caps at the 20 most-recently-run tasks.
-11. Import Settings updates the language dropdown visually but doesn't actually re-localize the running app.
-12. Tray icon is never removed on Exit — `TrayIconService.Dispose()` has zero call sites, leaves a ghost icon.
-13. "Task Started"/"Task Failed" toast notifications don't route back into the app on click.
-14. Quick Actions status can be clobbered mid-run by a stale 5-second reset timer from a previous run.
-15. `sfc`/`DISM` Quick Actions redirect stdout but never read it — pipe-buffer deadlock risk.
-16. `VeloPackUpdateService.ApplyAndRestart` swallows all exceptions with zero user-facing feedback.
-17. Stats-panel "Failed" count and the "Failed" tile's click-filter use different predicates (disagree on "Task Registered").
-18. `WhatsNewDialog` can throw if GitHub returns `null` for a release's name/body/URL.
-
-## Lower severity (leaks, dead code, minor UX)
-19. `EventLogReader` never disposed in `DiscoverTasksFromEventLog`/`GetTaskHistory` — native handle leak.
-20. `Error_Log.txt`/`Crash_Log.txt` have no size cap (only the main log rotates).
-21. Batch Stop doesn't clear the spinning-ring state (`IsRunning`) the way single-task Stop does.
-22. History detail dialog omits `ExitCode`.
-23. Ctrl+N can throw if pressed while another dialog is already open.
-24. Dashboard language-switch edge case: ja-JP "All Tags/Categories" strings missing from a hardcoded comparison list, can zero out the dashboard.
-25. `NlmInterop.cs` (~150 lines of raw COM interop) is dead code — network profiles are read from the registry instead.
-26. `SettingsService.Load()`/`Save()` swallow I/O exceptions with no logging.
+1. ***More TBD***
 
 # Changelog:
+
+## [Unreleased] - Full-app correctness audit
+Ran a systematic audit of every feature in the app after finding the trigger start-time/recurrence
+bugs. Found and fixed 26 issues, from silent data loss to dead code:
+
+**Data-loss / silently corrupted existing data:**
+1. Script Editor "Save" wiped all saved script templates on every save.
+2. Editing an existing task silently cleared `OnlyIfAC` / `OnlyIfNetwork` / `WakeToRun`.
+3. Folder rename/move could silently drop a task if copying it failed.
+4. "Restart on failure" could be silently dropped on save if the interval failed to parse.
+
+**Features that didn't do what they claimed:**
+5. Task expiration date/time was completely unwired.
+6. "Stop task if runs longer than" was completely unwired.
+7. Idle-trigger duration, Event-trigger fields, and idle Conditions settings were completely unwired.
+8. History date filter (Today/Yesterday/This Week/All Time) was a no-op.
+9. Dashboard "Run History" chart over-counted failures.
+10. Dashboard chart/recent-activity/failed-list silently capped at the 20 most-recently-run tasks.
+11. Import Settings didn't actually re-localize the running app.
+12. Tray icon was never removed on Exit, leaving a ghost icon.
+13. "Task Started"/"Task Failed" toast notifications didn't route back into the app on click.
+14. Quick Actions status could be clobbered mid-run by a stale reset timer from a previous run.
+15. `sfc`/`DISM` Quick Actions had a stdout pipe-buffer deadlock risk.
+16. Update-apply failures were silently swallowed with zero user-facing feedback.
+17. Stats-panel "Failed" count and the "Failed" filter disagreed on what counted as a failure.
+18. `WhatsNewDialog` could throw if GitHub returned `null` for a release's fields.
+
+**Lower severity (leaks, dead code, minor UX):**
+19. `EventLogReader` was never disposed — native handle leak.
+20. `Error_Log.txt`/`Crash_Log.txt` had no size cap.
+21. Batch Stop didn't clear the spinning-ring state the way single-task Stop does.
+22. History detail dialog omitted `ExitCode`.
+23. Ctrl+N could throw if pressed while another dialog was already open.
+24. Dashboard language-switch edge case could zero out the dashboard for languages missing from a hardcoded string list (e.g. ja-JP) — replaced with a language-independent flag.
+25. Removed ~150 lines of dead COM interop code (`NlmInterop.cs`).
+26. `SettingsService` load/save failures are now logged instead of silently swallowed.
+
+## [V1.8.1] - 2026-05-05
 
 ## [V1.8.1] - 2026-05-05
 1. Fixed Issue #5 ARM 64 portable crashes on startup (removed unsupported PublishSingleFile; portable is now ZIP-only).

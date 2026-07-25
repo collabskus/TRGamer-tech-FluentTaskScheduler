@@ -55,18 +55,7 @@ namespace FluentTaskScheduler.Services
                     if (!Directory.Exists(LogFolder))
                         Directory.CreateDirectory(LogFolder);
 
-                    // Rotate if too large
-                    if (File.Exists(LogPath))
-                    {
-                        var info = new FileInfo(LogPath);
-                        if (info.Length > MaxLogSize)
-                        {
-                            string backup = LogPath + ".old";
-                            if (File.Exists(backup)) File.Delete(backup);
-                            File.Move(LogPath, backup);
-                        }
-                    }
-
+                    RotateIfTooLarge(LogPath);
                     File.AppendAllText(LogPath, FormatLine(level, message) + Environment.NewLine);
                 }
             }
@@ -84,10 +73,23 @@ namespace FluentTaskScheduler.Services
                 {
                     if (!Directory.Exists(LogFolder))
                         Directory.CreateDirectory(LogFolder);
+                    RotateIfTooLarge(path);
                     File.AppendAllText(path, line + Environment.NewLine);
                 }
             }
             catch { }
+        }
+
+        /// <summary>Backs up and clears a log file once it exceeds MaxLogSize. Caller must hold _lock.</summary>
+        private static void RotateIfTooLarge(string path)
+        {
+            if (!File.Exists(path)) return;
+            var info = new FileInfo(path);
+            if (info.Length <= MaxLogSize) return;
+
+            string backup = path + ".old";
+            if (File.Exists(backup)) File.Delete(backup);
+            File.Move(path, backup);
         }
 
         private static void WriteToEventLog(string message, EventLogEntryType type)

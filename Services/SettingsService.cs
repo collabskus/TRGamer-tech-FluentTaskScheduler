@@ -53,10 +53,11 @@ namespace FluentTaskScheduler.Services
                     _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
                 }
             }
-            catch 
+            catch (Exception ex)
             {
                 // Fallback to defaults on error
                 _settings = new AppSettings();
+                LogService.Error($"Failed to load settings from '{SettingsPath}', reverting to defaults.", ex);
             }
         }
 
@@ -71,7 +72,10 @@ namespace FluentTaskScheduler.Services
                 string json = JsonSerializer.Serialize(_settings);
                 File.WriteAllText(SettingsPath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogService.Error($"Failed to save settings to '{SettingsPath}'.", ex);
+            }
         }
 
         public static ElementTheme Theme

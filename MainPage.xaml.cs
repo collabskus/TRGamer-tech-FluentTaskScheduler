@@ -331,6 +331,9 @@ namespace FluentTaskScheduler
         private async void OpenCreateTaskDialog(ViewModels.ScriptTemplateModel? template)
         {
             if (this.Content?.XamlRoot == null) return;
+            // WinUI only allows one open ContentDialog per XamlRoot - avoid throwing if
+            // Task Details (or another dialog) is already showing when Ctrl+N is pressed.
+            try { TaskDetailsDialog.Hide(); } catch { }
             _isEditMode = false;
             _isFromTemplate = template != null;
             
@@ -876,16 +879,21 @@ namespace FluentTaskScheduler
             }
 
             if (_historyStatusFilter == "Success") filtered = filtered.Where(h => h.Result == "Task Completed");
-            else if (_historyStatusFilter == "Failed") filtered = filtered.Where(h => h.Result != "Task Completed" && h.Result != "Task Started" && h.Result != "Task Registered");
+            else if (_historyStatusFilter == "Failed") filtered = filtered.Where(IsFailedHistoryEntry);
 
             InlineHistoryListView.ItemsSource = filtered.ToList();
         }
-        
+
+        // Shared by UpdateHistoryList's "Failed" filter and UpdateHistoryStats' StatFailed count,
+        // so the stat tile and clicking it to filter always agree on what counts as a failure.
+        private static bool IsFailedHistoryEntry(TaskHistoryEntry h) =>
+            h.Result != "Task Completed" && h.Result != "Task Started" && h.Result != "Task Registered";
+
         private void UpdateHistoryStats()
         {
             StatTotalRuns.Text = _fullHistory.Count.ToString();
             StatSuccess.Text = _fullHistory.Count(h => h.Result == "Task Completed").ToString();
-            StatFailed.Text = _fullHistory.Count(h => h.Result != "Task Completed" && h.Result != "Task Started").ToString();
+            StatFailed.Text = _fullHistory.Count(IsFailedHistoryEntry).ToString();
             StatLastResult.Text = _fullHistory.FirstOrDefault()?.Result ?? "-";
             HistoryStatsGrid.Visibility = Visibility.Visible;
         }
@@ -1845,7 +1853,7 @@ namespace FluentTaskScheduler
                 _ = WatchTaskUntilFinished(t);
             }
         }
-        private void BatchStop_Click(object sender, RoutedEventArgs e) => PerformBatchAction(t => { ViewModel.TaskService.StopTask(t.Path); t.State = "Ready"; });
+        private void BatchStop_Click(object sender, RoutedEventArgs e) => PerformBatchAction(t => { ViewModel.TaskService.StopTask(t.Path); t.State = "Ready"; t.IsRunning = false; });
         private async void BatchEnable_Click(object sender, RoutedEventArgs e) { var denied = PerformBatchActionWithErrors(t => { if (!t.IsEnabled) { ViewModel.TaskService.SetTaskEnabled(t.Path, true); t.IsEnabled = true; } }); UpdateBatchActionsState(); if (denied.Count > 0) await ShowErrorDialog($"The user account under which you are performing this action does not have permission to enable the following task(s):\n\n{string.Join("\n", denied)}\n\nThese tasks are protected and cannot be modified, even with administrator privileges."); }
         private async void BatchDisable_Click(object sender, RoutedEventArgs e) { var denied = PerformBatchActionWithErrors(t => { if (t.IsEnabled) { ViewModel.TaskService.SetTaskEnabled(t.Path, false); t.IsEnabled = false; } }); UpdateBatchActionsState(); if (denied.Count > 0) await ShowErrorDialog($"The user account under which you are performing this action does not have permission to disable the following task(s):\n\n{string.Join("\n", denied)}\n\nThese tasks are protected and cannot be modified, even with administrator privileges."); }
         private async void BatchDelete_Click(object sender, RoutedEventArgs e)

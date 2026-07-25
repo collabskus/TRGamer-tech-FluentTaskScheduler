@@ -103,14 +103,15 @@ namespace FluentTaskScheduler.ViewModels
 
         private void RefreshFilterLabels()
         {
-            // Update SelectedTag/Category if they were the "All" labels
-            // We just reset them to the current localized "All" label if they were null or any of the hardcoded defaults
-            // This is a bit of a heuristic but it works for language switching
-            if (string.IsNullOrEmpty(_selectedTag) || _selectedTag == "All Tags" || _selectedTag == "所有标签" || _selectedTag == "Alle Tags") 
+            // Re-point SelectedTag/Category at the new locale's "All" label if that's what was
+            // selected, tracked via a language-independent flag rather than comparing against a
+            // hardcoded list of translated "All" strings (which silently breaks for any language
+            // not in that list - e.g. ja-JP zeroed out the whole dashboard until re-clicked).
+            if (string.IsNullOrEmpty(_selectedTag) || _selectedTagIsAll)
             {
                 _selectedTag = AllTagsLabel;
             }
-            if (string.IsNullOrEmpty(_selectedCategory) || _selectedCategory == "All Categories" || _selectedCategory == "所有分类" || _selectedCategory == "Alle Kategorien")
+            if (string.IsNullOrEmpty(_selectedCategory) || _selectedCategoryIsAll)
             {
                 _selectedCategory = AllCategoriesLabel;
             }
@@ -185,6 +186,7 @@ namespace FluentTaskScheduler.ViewModels
         public string ExitCodePrefix => LocalizationService.GetString("DashboardExitCode.Text", "Exit Code: ");
 
         private string _selectedTag = LocalizationService.GetString("Dashboard.AllTags", "All Tags");
+        private bool _selectedTagIsAll = true;
         public string SelectedTag
         {
             get => _selectedTag;
@@ -192,6 +194,7 @@ namespace FluentTaskScheduler.ViewModels
             {
                 if (_selectedTag != value)
                 {
+                    _selectedTagIsAll = value == null || value == AllTagsLabel;
                     _selectedTag = value ?? AllTagsLabel;
                     OnPropertyChanged();
 
@@ -202,6 +205,7 @@ namespace FluentTaskScheduler.ViewModels
         }
 
         private string _selectedCategory = LocalizationService.GetString("Dashboard.AllCategories", "All Categories");
+        private bool _selectedCategoryIsAll = true;
         public string SelectedCategory
         {
             get => _selectedCategory;
@@ -209,6 +213,7 @@ namespace FluentTaskScheduler.ViewModels
             {
                 if (_selectedCategory != value)
                 {
+                    _selectedCategoryIsAll = value == null || value == AllCategoriesLabel;
                     _selectedCategory = value ?? AllCategoriesLabel;
                     OnPropertyChanged();
 

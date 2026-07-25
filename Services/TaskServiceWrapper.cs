@@ -692,7 +692,7 @@ namespace FluentTaskScheduler.Services
                 // Event IDs for task activity: 100 (started), 102 (completed), 107 (triggered), 110 (registered)
                 string query = "*[System[(EventID=100 or EventID=102 or EventID=107 or EventID=110)]]";
                 EventLogQuery eventsQuery = new EventLogQuery("Microsoft-Windows-TaskScheduler/Operational", PathType.LogName, query);
-                EventLogReader logReader = new EventLogReader(eventsQuery);
+                using EventLogReader logReader = new EventLogReader(eventsQuery);
 
                 EventRecord record;
                 // Limit to last 2000 events to ensure older infrequent tasks are caught
@@ -775,7 +775,7 @@ namespace FluentTaskScheduler.Services
             {
                 string query = $"*[System/Provider[@Name='Microsoft-Windows-TaskScheduler'] and EventData[Data[@Name='TaskName']='{taskPath}']]";
                 EventLogQuery eventsQuery = new EventLogQuery("Microsoft-Windows-TaskScheduler/Operational", PathType.LogName, query);
-                EventLogReader logReader = new EventLogReader(eventsQuery);
+                using EventLogReader logReader = new EventLogReader(eventsQuery);
 
                 EventRecord record;
                 while ((record = logReader.ReadEvent()) != null)
