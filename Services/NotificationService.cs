@@ -10,6 +10,7 @@ namespace FluentTaskScheduler.Services
             if (!SettingsService.ShowNotifications) return;
 
             new ToastContentBuilder()
+                .AddArgument("action", "show")
                 .AddText($"Task Started: {taskName}")
                 .AddText("The task has been triggered manually.")
                 .Show();
@@ -20,6 +21,7 @@ namespace FluentTaskScheduler.Services
             if (!SettingsService.ShowNotifications) return;
 
             new ToastContentBuilder()
+                .AddArgument("action", "show")
                 .AddText($"Task Failed: {taskName}")
                 .AddText(error)
                 .Show();

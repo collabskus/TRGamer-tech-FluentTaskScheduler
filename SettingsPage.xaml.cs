@@ -522,7 +522,15 @@ namespace FluentTaskScheduler
 
             var dialogResult = await dialog.ShowAsync();
             if (dialogResult == ContentDialogResult.Primary)
-                Services.VeloPackUpdateService.ApplyAndRestart(result.Info);
+            {
+                bool applied = Services.VeloPackUpdateService.ApplyAndRestart(result.Info);
+                if (!applied)
+                {
+                    await ShowDialog(
+                        LocalizationService.GetString("Settings.UpdateError.Title", "Update Error"),
+                        LocalizationService.GetString("Settings.UpdateApplyFailed.Content", "Failed to apply the update. Check the log for details, or try again later."));
+                }
+            }
         }
 
         private async void ReplayOnboardingButton_Click(object sender, RoutedEventArgs e)

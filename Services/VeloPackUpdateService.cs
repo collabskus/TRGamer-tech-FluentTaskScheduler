@@ -75,17 +75,21 @@ namespace FluentTaskScheduler.Services
 
         /// <summary>
         /// Applies a previously downloaded update and restarts the application.
+        /// Returns false (instead of throwing) if applying the update failed, so the
+        /// caller can inform the user instead of the app silently doing nothing.
         /// </summary>
-        public static void ApplyAndRestart(UpdateInfo updateInfo)
+        public static bool ApplyAndRestart(UpdateInfo updateInfo)
         {
             try
             {
                 var mgr = GetManager();
                 mgr.ApplyUpdatesAndRestart(updateInfo);
+                return true;
             }
             catch (Exception ex)
             {
-                LogService.Info($"[VeloPackUpdate] Restart failed: {ex.Message}");
+                LogService.Error($"[VeloPackUpdate] Restart failed: {ex.Message}");
+                return false;
             }
         }
 

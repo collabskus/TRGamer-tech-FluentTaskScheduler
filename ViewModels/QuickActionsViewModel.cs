@@ -34,6 +34,10 @@ namespace FluentTaskScheduler.ViewModels
         public bool AdminRequired { get; set; }
         public string RunText { get; set; } = LocalizationService.GetString("QuickActions.RunBtn", "Run");
 
+        // Incremented on every ExecuteAction call so a stale reset-to-Idle timer from a
+        // previous run can't clobber the status of a newer run started within the reset delay.
+        internal int RunToken { get; set; }
+
         public QuickActionStatus Status
         {
             get => _status;
@@ -156,6 +160,7 @@ namespace FluentTaskScheduler.ViewModels
         {
             if (action.Status == QuickActionStatus.Running) return;
 
+            int runToken = ++action.RunToken;
             action.Status = QuickActionStatus.Running;
             action.StatusMessage = "";
 
@@ -185,12 +190,21 @@ namespace FluentTaskScheduler.ViewModels
                     using (var process = Process.Start(startInfo))
                     {
                         if (process == null) throw new Exception("Failed to start process.");
+
+                        // Read stdout/stderr asynchronously while waiting - reading only one stream
+                        // (or reading after WaitForExit) can deadlock if the child fills the OS pipe
+                        // buffer on the other stream before exiting (classic Process redirect deadlock).
+                        var errorBuilder = new System.Text.StringBuilder();
+                        process.OutputDataReceived += (_, args) => { };
+                        process.ErrorDataReceived += (_, args) => { if (args.Data != null) errorBuilder.AppendLine(args.Data); };
+                        process.BeginOutputReadLine();
+                        process.BeginErrorReadLine();
+
                         process.WaitForExit();
 
                         if (process.ExitCode != 0)
                         {
-                            var error = process.StandardError.ReadToEnd();
-                            throw new Exception($"Process exited with code {process.ExitCode}. {error}");
+                            throw new Exception($"Process exited with code {process.ExitCode}. {errorBuilder}");
                         }
                     }
                 });
@@ -204,10 +218,11 @@ namespace FluentTaskScheduler.ViewModels
                 LogService.Error($"Quick Action '{action.Title}' failed: {ex.Message}");
             }
 
-            // Reset to idle after a few seconds
+            // Reset to idle after a few seconds - only if a newer run hasn't started in the meantime.
             _ = Task.Delay(5000).ContinueWith(_ =>
             {
-                action.Status = QuickActionStatus.Idle;
+                if (action.RunToken == runToken)
+                    action.Status = QuickActionStatus.Idle;
             }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 

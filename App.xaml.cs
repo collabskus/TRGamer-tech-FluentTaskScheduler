@@ -312,7 +312,7 @@ namespace FluentTaskScheduler
             Services.TrayIconService.NewWindowRequested += () =>
                 _windows[0].Win.DispatcherQueue.TryEnqueue(CreateAndRegisterWindow);
 
-            Services.TrayIconService.ExitRequested += () => Environment.Exit(0);
+            Services.TrayIconService.ExitRequested += () => { Services.TrayIconService.Dispose(); Environment.Exit(0); };
             Services.TrayIconService.UpdateVisibility();
 
             Services.LogService.Info("Application started");
@@ -577,7 +577,19 @@ namespace FluentTaskScheduler
                         var dialogResult = await dialog.ShowAsync();
                         if (dialogResult == ContentDialogResult.Primary)
                         {
-                            Services.VeloPackUpdateService.ApplyAndRestart(result.Info);
+                            bool applied = Services.VeloPackUpdateService.ApplyAndRestart(result.Info);
+                            if (!applied)
+                            {
+                                var failDialog = new ContentDialog
+                                {
+                                    Title = Services.LocalizationService.GetString("Settings.UpdateError.Title", "Update Error"),
+                                    Content = Services.LocalizationService.GetString("Settings.UpdateApplyFailed.Content", "Failed to apply the update. Check the log for details, or try again later."),
+                                    CloseButtonText = Services.LocalizationService.GetString("Dialog.Common.Close", "Close"),
+                                    XamlRoot = m_window.Content?.XamlRoot,
+                                    RequestedTheme = SS.Theme
+                                };
+                                await failDialog.ShowAsync();
+                            }
                         }
                     }
                     catch (Exception ex)
