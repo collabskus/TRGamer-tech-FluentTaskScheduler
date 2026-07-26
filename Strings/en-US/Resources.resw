@@ -838,5 +838,6 @@ Restart now to apply the update?</value></data>
   <data name="Task.Snooze.Label" xml:space="preserve"><value>Snooze</value></data>
   <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>Disable this task until:</value></data>
   <data name="Task.Snooze.Status" xml:space="preserve"><value>Snoozed until {0}</value></data>
+  <data name="Task.Snooze.Resume" xml:space="preserve"><value>Resume now</value></data>
 </root>
 

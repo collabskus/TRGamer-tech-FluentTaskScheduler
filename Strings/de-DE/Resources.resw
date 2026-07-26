@@ -835,7 +835,8 @@ Jetzt App neustarten?</value></data>
   <data name="Scripts.SystemFileChecker.Name" xml:space="preserve"><value>Systemdateiprüfung</value></data>
   <data name="Scripts.SystemInfoReport.Description" xml:space="preserve"><value>Erstellt einen detaillierten Systembericht und speichert ihn in einer Datei.</value></data>
   <data name="Scripts.SystemInfoReport.Name" xml:space="preserve"><value>Systeminformationsbericht</value></data>
-  <data name="Task.Snooze.Label" xml:space="preserve"><value>Schlummern</value></data>
+  <data name="Task.Snooze.Label" xml:space="preserve"><value>Pausieren</value></data>
   <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>Diese Aufgabe deaktivieren bis:</value></data>
   <data name="Task.Snooze.Status" xml:space="preserve"><value>Schlummert bis {0}</value></data>
+  <data name="Task.Snooze.Resume" xml:space="preserve"><value>Jetzt fortsetzen</value></data>
 </root>

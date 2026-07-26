@@ -178,17 +178,6 @@ namespace FluentTaskScheduler
             SnoozeReboot.Content = L("Snooze.Duration.Reboot", "Until Next Reboot");
             SnoozeCustom.Content = L("Snooze.Duration.Custom", "Custom Time...");
 
-            // Per-task snooze (task detail dialog) — reuses the global snooze's duration labels.
-            SnoozeTaskButton.Content = L("Task.Snooze.Label", "Snooze");
-            SnoozeTask30m.Text = L("Snooze.Duration.30m", "30 Minutes");
-            SnoozeTask1h.Text = L("Snooze.Duration.1h", "1 Hour");
-            SnoozeTask3h.Text = L("Snooze.Duration.3h", "3 Hours");
-            SnoozeTaskReboot.Text = L("Snooze.Duration.Reboot", "Until Next Reboot");
-            SnoozeTaskCustom.Text = L("Snooze.Duration.Custom", "Custom Time...");
-            SnoozeTaskCancel.Text = L("Snooze.Menu.Resume", "Resume Now");
-            TaskSnoozeCustomApply.Content = L("Snooze.Dialog.Confirm", "Snooze");
-            TaskSnoozeCustomCancel.Content = L("Dialog.Common.Cancel", "Cancel");
-            TaskSnoozeCustomIntro.Text = L("Task.Snooze.CustomIntro", "Disable this task until:");
             SnoozeSuspendTriggers.Content = L("Snooze.SuspendTriggers", "Also suspend scheduled triggers");
             SnoozeSuspendHint.Text = L("Snooze.SuspendTriggersHint",
                 "Disables every enabled task through the Task Scheduler API and re-enables exactly those tasks when the snooze ends. Tasks under \\Microsoft\\ (Defender, Windows Update, maintenance) are never touched unless you enable the option below. Protected system tasks are skipped.");
@@ -293,6 +282,20 @@ namespace FluentTaskScheduler
             NavScriptLibrary.Content = L("Main.Nav.Library", "Library");
             NavScriptEditor.Content = L("Main.Nav.ScriptEditor", "Script Editor");
             FoldersHeader.Text = L("Main.FoldersHeader", "Folders");
+
+            // Per-task snooze, in the task detail dialog. These belong here and not in the global
+            // snooze dialog's click handler: that handler only runs if the user opens "Snooze All",
+            // which left these controls showing their raw XAML literals (or nothing at all).
+            SnoozeTaskButton.Content = L("Task.Snooze.Label", "Snooze");
+            SnoozeTask30m.Text = L("Snooze.Duration.30m", "30 Minutes");
+            SnoozeTask1h.Text = L("Snooze.Duration.1h", "1 Hour");
+            SnoozeTask3h.Text = L("Snooze.Duration.3h", "3 Hours");
+            SnoozeTaskReboot.Text = L("Snooze.Duration.Reboot", "Until Next Reboot");
+            SnoozeTaskCustom.Text = L("Snooze.Duration.Custom", "Custom Time...");
+            SnoozeTaskCancel.Text = L("Task.Snooze.Resume", "Resume now");
+            TaskSnoozeCustomApply.Content = L("Snooze.Dialog.Confirm", "Snooze");
+            TaskSnoozeCustomCancel.Content = L("Dialog.Common.Cancel", "Cancel");
+            TaskSnoozeCustomIntro.Text = L("Task.Snooze.CustomIntro", "Disable this task until:");
             NavAdd.Content = L("Main.Nav.NewTask", "New Task");
             NavAllTasks.Content = L("Main.Nav.AllTasks", "All Tasks");
             NavSettings.Content = L("Main.Nav.Settings", "Settings");

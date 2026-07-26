@@ -838,4 +838,5 @@
   <data name="Task.Snooze.Label" xml:space="preserve"><value>スヌーズ</value></data>
   <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>このタスクを次の時刻まで無効にする:</value></data>
   <data name="Task.Snooze.Status" xml:space="preserve"><value>{0} までスヌーズ中</value></data>
+  <data name="Task.Snooze.Resume" xml:space="preserve"><value>今すぐ再開</value></data>
 </root>

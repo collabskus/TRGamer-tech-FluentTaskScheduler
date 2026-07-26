@@ -841,6 +841,7 @@
   <data name="Task.Snooze.Label" xml:space="preserve"><value>暂停</value></data>
   <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>将此任务禁用至：</value></data>
   <data name="Task.Snooze.Status" xml:space="preserve"><value>已暂停至 {0}</value></data>
+  <data name="Task.Snooze.Resume" xml:space="preserve"><value>立即恢复</value></data>
 </root>
 
 
