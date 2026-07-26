@@ -89,7 +89,7 @@ choco install fluenttaskscheduler
 
 ### 📜 Script Library
 
-- **Centralized Management**: A dedicated space for pr-written PowerShell scripts, separating logic from task configuration.
+- **Centralized Management**: A dedicated space for pre-written PowerShell scripts, separating logic from task configuration.
 - **Reusable Code**: Use scripts in multiple tasks.
 - **Custom Templates**: Save and reuse your own task templates, going beyond just the pre-built scripts.
 
@@ -147,7 +147,7 @@ choco install fluenttaskscheduler
 - **Smart Search**: Instantly find tasks by name, status, path, or those tags you just added.
 - **Folder Management**: Organize your tasks logically by creating, renaming, and deleting custom folders. Features dedicated grip handles for reliable drag-and-drop reordering.
 - **Smart Navigation**: The application remembers your last-used folder on restart.
-- **Sortable Lists**: Sort tasks easily by clicking column headers directly in the task list (by name, status, next run, etc.).
+- **Sortable Lists**: Sort tasks by name, status, next run, or last run from the Sort toolbar button.
 - **Import/Export**: Easily backup or migrate task definitions. Supports importing to any selected folder.
 - **Batch Operations**: Select and manage multiple tasks simultaneously.
 - **CLI Support**: Full command-line interface for automation and headless management.
@@ -199,7 +199,7 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details
 
 ## 🛠️ Troubleshooting
 
-- **Crash Logs**: If the application encounters a critical error, a `crash_log.txt` file is generated in the application directory.
+- **Crash Logs**: If the application encounters a critical error, a `Crash_Log.txt` file is generated in `%LOCALAPPDATA%\FluentTaskScheduler\`.
 - **Admin Rights**: Some features (like "Run as SYSTEM") require the application to be run as Administrator.
 - **Preferences storage**: The application stores its preferences as well as the log and custom script files in a JSON file in "%localappdata%\FluentTaskScheduler".
 - **Portable distribution**: The portable release is a **ZIP archive** (folder), not a single `.exe`. WinUI 3 requires its native runtime DLLs to be present alongside the executable; single-file bundling is not supported and will crash on startup.

@@ -1,7 +1,3 @@
-# NOTE TO MAINTAINER:
-# Replace <SHA256_OF_Setup-x64.msi> with the real SHA-256 hash before packing.
-# Compute with: (Get-FileHash "Setup-x64.msi" -Algorithm SHA256).Hash
-
 $ErrorActionPreference = 'Stop'
 
 $packageName   = 'fluenttaskscheduler'
@@ -20,6 +16,9 @@ if ($isArm64) {
     $pkgHash = '7E287325795C82851EA8935F392486C085A6B36E5302F4252E3BE7820CAC682E'
 }
 
+# Chocolatey's helpers only expose url/checksum (32-bit) and url64bit/checksum64 (64-bit) — there is
+# no dedicated ARM64 slot. url64bit is reused here for both x64 and ARM64 after the manual
+# architecture detection above; this is the standard workaround other ARM64 Chocolatey packages use.
 $packageArgs = @{
   packageName    = $packageName
   fileType       = 'msi'

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using FluentTaskScheduler.Helpers;
 using FluentTaskScheduler.Services;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -184,7 +185,7 @@ namespace FluentTaskScheduler.ViewModels
                     if (action.AdminRequired)
                     {
                         // Check if we are already elevated
-                        if (!IsRunningAsAdmin())
+                        if (!ElevationHelper.IsElevated())
                         {
                             throw new UnauthorizedAccessException("This action requires Administrator privileges. Please restart the app as Administrator.");
                         }
@@ -227,15 +228,6 @@ namespace FluentTaskScheduler.ViewModels
                 if (action.RunToken == runToken)
                     action.Status = QuickActionStatus.Idle;
             }, TaskScheduler.FromCurrentSynchronizationContext());
-        }
-
-        private bool IsRunningAsAdmin()
-        {
-            using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
-            {
-                var principal = new System.Security.Principal.WindowsPrincipal(identity);
-                return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
-            }
         }
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

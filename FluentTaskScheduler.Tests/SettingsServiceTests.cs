@@ -17,6 +17,7 @@ namespace FluentTaskScheduler.Tests
         public SettingsServiceTests()
         {
             _tempDir = Path.Combine(Path.GetTempPath(), "FTS_Tests_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempDir);
             SettingsService.UseStorageForTests(_tempDir);
         }
 
@@ -121,6 +122,113 @@ namespace FluentTaskScheduler.Tests
 
             Assert.False(SettingsService.EnableTaskPipelines);
             Assert.Equal(new[] { "A", "B" }, SettingsService.SavedCategories);
+        }
+
+        // Covers item 4.5: proper add/remove methods instead of "mutate the live list, then
+        // reassign the property to itself to trigger a save".
+        [Fact]
+        public void AddSavedCategory_PersistsAndIsIdempotent()
+        {
+            SettingsService.SavedCategories = new();
+            SettingsService.AddSavedCategory("Work");
+            SettingsService.AddSavedCategory("Work"); // duplicate — must not be added twice
+
+            Assert.Equal(new[] { "Work" }, SettingsService.SavedCategories);
+        }
+
+        [Fact]
+        public void RemoveSavedCategory_RemovesOnlyThatEntry()
+        {
+            SettingsService.SavedCategories = new() { "Work", "Personal" };
+            SettingsService.RemoveSavedCategory("Work");
+
+            Assert.Equal(new[] { "Personal" }, SettingsService.SavedCategories);
+        }
+
+        [Fact]
+        public void AddSavedTag_PersistsAndIsIdempotent()
+        {
+            SettingsService.SavedTags = new();
+            SettingsService.AddSavedTag("urgent");
+            SettingsService.AddSavedTag("urgent");
+
+            Assert.Equal(new[] { "urgent" }, SettingsService.SavedTags);
+        }
+
+        [Fact]
+        public void RemoveSavedTag_RemovesOnlyThatEntry()
+        {
+            SettingsService.SavedTags = new() { "urgent", "sync" };
+            SettingsService.RemoveSavedTag("urgent");
+
+            Assert.Equal(new[] { "sync" }, SettingsService.SavedTags);
+        }
+
+        [Fact]
+        public void AddSavedCategory_IgnoresEmptyOrWhitespace()
+        {
+            SettingsService.SavedCategories = new();
+            SettingsService.AddSavedCategory("");
+            SettingsService.AddSavedCategory("   ");
+
+            Assert.Empty(SettingsService.SavedCategories);
+        }
+
+        // Covers item 4.5: exported settings must not carry this machine's live runtime state
+        // (window size, active snooze) into another machine's config.
+        [Fact]
+        public void ExportSettings_ClearsRuntimeState()
+        {
+            SettingsService.SetWindowSize(2000, 1500);
+            SettingsService.SaveSnoozeState(true, DateTime.UtcNow.AddHours(1), false, "", new() { "\\Some\\Task" });
+            SettingsService.Flush();
+
+            string exportPath = Path.Combine(_tempDir, "export.json");
+            SettingsService.ExportSettings(exportPath);
+
+            var exported = JsonSerializer.Deserialize<JsonDocument>(File.ReadAllText(exportPath))!.RootElement;
+            Assert.False(exported.GetProperty("IsSnoozed").GetBoolean());
+            Assert.Equal(0, exported.GetProperty("SnoozeDisabledTaskPaths").GetArrayLength());
+            Assert.Equal(1200, exported.GetProperty("WindowWidth").GetInt32());
+            Assert.Equal(800, exported.GetProperty("WindowHeight").GetInt32());
+
+            // The exported file must not have mutated the live in-memory settings.
+            Assert.True(SettingsService.IsSnoozed);
+            Assert.Equal(2000, SettingsService.WindowWidth);
+        }
+
+        [Fact]
+        public void ImportSettings_ClearsRuntimeStateEvenIfPresentInTheFile()
+        {
+            // Simulates importing a hand-edited or foreign settings.json that still has runtime
+            // fields populated — those must not be allowed to resurrect a stale snooze.
+            string importPath = Path.Combine(_tempDir, "import.json");
+            File.WriteAllText(importPath, """
+                {
+                  "WindowWidth": 3000,
+                  "WindowHeight": 2000,
+                  "IsSnoozed": true,
+                  "SnoozeUntilReboot": true,
+                  "SnoozeDisabledTaskPaths": ["\\Some\\Task"]
+                }
+                """);
+
+            SettingsService.ImportSettings(importPath);
+
+            Assert.False(SettingsService.IsSnoozed);
+            Assert.False(SettingsService.SnoozeUntilReboot);
+            Assert.Empty(SettingsService.SnoozeDisabledTaskPaths);
+            Assert.Equal(1200, SettingsService.WindowWidth);
+            Assert.Equal(800, SettingsService.WindowHeight);
+        }
+
+        [Fact]
+        public void ImportSettings_ThrowsOnInvalidJson()
+        {
+            string importPath = Path.Combine(_tempDir, "bad.json");
+            File.WriteAllText(importPath, "not valid json");
+
+            Assert.ThrowsAny<Exception>(() => SettingsService.ImportSettings(importPath));
         }
     }
 }

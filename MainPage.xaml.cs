@@ -1525,49 +1525,21 @@ namespace FluentTaskScheduler
         private async void ExportTask_Click(object sender, RoutedEventArgs e)
         {
             if (ViewModel.SelectedTask == null) return;
-            string? filePath = null;
 
-            if (Helpers.ElevationHelper.IsElevated())
-            {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                filePath = Helpers.Win32FilePicker.PickSaveFile(hwnd, "Export Task", "XML File (*.xml)|*.xml|All files (*.*)|*.*", "xml", ViewModel.SelectedTask.Name);
-            }
-            else
-            {
-                var picker = new Windows.Storage.Pickers.FileSavePicker();
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-                picker.FileTypeChoices.Add("XML File", new List<string>() { ".xml" });
-                picker.SuggestedFileName = ViewModel.SelectedTask.Name;
-                var file = await picker.PickSaveFileAsync();
-                if (file != null) filePath = file.Path;
-            }
+            string? filePath = await Helpers.FilePickerHelper.PickSaveFileAsync(
+                App.m_window!, "Export Task", "XML File", "xml", ViewModel.SelectedTask.Name);
 
             if (!string.IsNullOrEmpty(filePath))
             {
-                try { ViewModel.TaskService.ExportTask(ViewModel.SelectedTask.Path, filePath); } 
+                try { ViewModel.TaskService.ExportTask(ViewModel.SelectedTask.Path, filePath); }
                 catch (Exception ex) { await ShowErrorDialog(ex.Message); }
             }
         }
-        
+
         private async void ImportTask()
         {
-            string? filePath = null;
-
-            if (Helpers.ElevationHelper.IsElevated())
-            {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                filePath = Helpers.Win32FilePicker.PickOpenFile(hwnd, "Import Task", "XML File (*.xml)|*.xml|All files (*.*)|*.*");
-            }
-            else
-            {
-                var picker = new Windows.Storage.Pickers.FileOpenPicker();
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-                picker.FileTypeFilter.Add(".xml");
-                var file = await picker.PickSingleFileAsync();
-                if (file != null) filePath = file.Path;
-            }
+            string? filePath = await Helpers.FilePickerHelper.PickOpenFileAsync(
+                App.m_window!, "Import Task", "XML File", "xml");
 
             if (!string.IsNullOrEmpty(filePath))
             {
@@ -2193,31 +2165,15 @@ namespace FluentTaskScheduler
 
         private async void BrowseAction_Click(object sender, RoutedEventArgs e)
         {
-            string? filePath = null;
-
-            if (Helpers.ElevationHelper.IsElevated())
-            {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                filePath = Helpers.Win32FilePicker.PickOpenFile(hwnd, "Select File", "All files (*.*)|*.*");
-            }
-            else
-            {
-                var picker = new Windows.Storage.Pickers.FileOpenPicker();
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-                picker.FileTypeFilter.Add("*");
-                var file = await picker.PickSingleFileAsync();
-                if (file != null) filePath = file.Path;
-            }
+            string? filePath = await Helpers.FilePickerHelper.PickOpenFileAsync(
+                App.m_window!, "Select File", "All Files", "*");
 
             if (!string.IsNullOrEmpty(filePath)) EditTaskActionCommand.Text = filePath;
         }
 
         private void PopulateNetworkList()
         {
-            bool isAdmin = new System.Security.Principal.WindowsPrincipal(
-                System.Security.Principal.WindowsIdentity.GetCurrent())
-                .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+            bool isAdmin = Helpers.ElevationHelper.IsElevated();
 
             if (!isAdmin)
             {
@@ -2359,14 +2315,9 @@ namespace FluentTaskScheduler
         private void UserContextRadio_Checked(object sender, RoutedEventArgs e) 
         { 
              if (EditTaskRunAsUser != null) EditTaskRunAsUser.IsEnabled = RunAsSpecificUser.IsChecked == true; 
-             if (SystemUserWarning != null) 
+             if (SystemUserWarning != null)
              {
-                 bool isElevated = false;
-                 using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
-                 {
-                     var principal = new System.Security.Principal.WindowsPrincipal(identity);
-                     isElevated = principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
-                 }
+                 bool isElevated = Helpers.ElevationHelper.IsElevated();
                  SystemUserWarning.IsOpen = (!isElevated) && (RunAsSystem.IsChecked == true);
              }
         }
@@ -3024,21 +2975,13 @@ namespace FluentTaskScheduler
         }
 
 
-        private async Task ShowErrorDialog(string message) 
+        private async Task ShowErrorDialog(string message)
         {
             if (_isDialogOpen) return;
             _isDialogOpen = true;
-            try 
-            { 
-                var dialog = new ContentDialog 
-                { 
-                    Title = L("Dialog.Error.Title", "Error"), 
-                    Content = message, 
-                    CloseButtonText = L("Dialog.Common.OK", "OK"), 
-                    XamlRoot = this.XamlRoot, 
-                    RequestedTheme = Services.SettingsService.Theme 
-                };
-                await dialog.ShowAsync(); 
+            try
+            {
+                await Helpers.DialogHelper.ShowErrorAsync(this.XamlRoot, message);
             }
             catch (Exception ex)
             {
@@ -3088,9 +3031,7 @@ namespace FluentTaskScheduler
                 var newCat = selected.Substring(5, selected.Length - 6);
                 if (!ViewModel.SavedCategories.Any(c => c.Equals(newCat, StringComparison.OrdinalIgnoreCase)))
                 {
-                    var cats = new List<string>(ViewModel.SavedCategories);
-                    cats.Add(newCat);
-                    Services.SettingsService.SavedCategories = cats;
+                    Services.SettingsService.AddSavedCategory(newCat);
                     ViewModel.RefreshSavedCategories();
                 }
                 sender.Text = newCat;
@@ -3172,9 +3113,7 @@ namespace FluentTaskScheduler
                 finalTag = selected.Substring(5, selected.Length - 6);
                 if (!ViewModel.SavedTags.Any(t => t.Equals(finalTag, StringComparison.OrdinalIgnoreCase)))
                 {
-                    var tags = new List<string>(ViewModel.SavedTags);
-                    tags.Add(finalTag);
-                    Services.SettingsService.SavedTags = tags;
+                    Services.SettingsService.AddSavedTag(finalTag);
                     ViewModel.RefreshSavedCategories();
                 }
             }

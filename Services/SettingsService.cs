@@ -348,6 +348,44 @@ namespace FluentTaskScheduler.Services
             set { _settings.SavedTags = value; Save(); }
         }
 
+        // The getters above return the live internal list, so callers used to mutate it directly
+        // and then reassign the property to itself just to trigger a save
+        // (`SavedCategories.Add(x); SavedCategories = SavedCategories;`). These do the same thing
+        // properly — mutate under the lock and save once (see 4.5).
+        public static void AddSavedCategory(string category)
+        {
+            if (string.IsNullOrWhiteSpace(category)) return;
+            lock (_lock)
+            {
+                if (_settings.SavedCategories.Contains(category)) return;
+                _settings.SavedCategories.Add(category);
+            }
+            Save();
+        }
+
+        public static void RemoveSavedCategory(string category)
+        {
+            lock (_lock) { _settings.SavedCategories.Remove(category); }
+            Save();
+        }
+
+        public static void AddSavedTag(string tag)
+        {
+            if (string.IsNullOrWhiteSpace(tag)) return;
+            lock (_lock)
+            {
+                if (_settings.SavedTags.Contains(tag)) return;
+                _settings.SavedTags.Add(tag);
+            }
+            Save();
+        }
+
+        public static void RemoveSavedTag(string tag)
+        {
+            lock (_lock) { _settings.SavedTags.Remove(tag); }
+            Save();
+        }
+
         public static bool ShowHiddenTasks
         {
             get => _settings.ShowHiddenTasks;
@@ -424,6 +462,25 @@ namespace FluentTaskScheduler.Services
             SaveImmediate();
         }
 
+        /// <summary>
+        /// Resets fields that describe this machine's current runtime state rather than a durable
+        /// user preference: window geometry and the live global-snooze window. Exporting these lets
+        /// importing the file on another machine (or re-importing it later) resurrect a stale snooze
+        /// or an unreasonable window size; importing them lets a hand-edited/foreign file inject
+        /// bogus runtime state (see 4.5).
+        /// </summary>
+        private static void ClearRuntimeState(AppSettings s)
+        {
+            var defaults = new AppSettings();
+            s.WindowWidth = defaults.WindowWidth;
+            s.WindowHeight = defaults.WindowHeight;
+            s.IsSnoozed = false;
+            s.SnoozeUntilUtc = null;
+            s.SnoozeUntilReboot = false;
+            s.SnoozeBootStamp = "";
+            s.SnoozeDisabledTaskPaths = new List<string>();
+        }
+
         public static void ExportSettings(string targetPath)
         {
             try
@@ -431,8 +488,10 @@ namespace FluentTaskScheduler.Services
                 string json;
                 lock (_lock)
                 {
+                    var exportCopy = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(_settings)) ?? new AppSettings();
+                    ClearRuntimeState(exportCopy);
                     var options = new JsonSerializerOptions { WriteIndented = true };
-                    json = JsonSerializer.Serialize(_settings, options);
+                    json = JsonSerializer.Serialize(exportCopy, options);
                 }
                 File.WriteAllText(targetPath, json);
                 LogService.Info($"Settings exported to {targetPath}");
@@ -452,12 +511,17 @@ namespace FluentTaskScheduler.Services
                 var imported = JsonSerializer.Deserialize<AppSettings>(json);
                 if (imported != null)
                 {
+                    ClearRuntimeState(imported);
                     lock (_lock)
                     {
                         _settings = imported;
                     }
                     SaveImmediate();
                     LogService.Info($"Settings imported from {sourcePath}");
+                }
+                else
+                {
+                    throw new InvalidDataException($"'{sourcePath}' did not contain valid settings data.");
                 }
             }
             catch (Exception ex)

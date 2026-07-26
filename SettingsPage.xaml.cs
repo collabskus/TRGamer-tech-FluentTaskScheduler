@@ -470,21 +470,16 @@ namespace FluentTaskScheduler
         {
             try
             {
-                var picker = new FileSavePicker();
-                picker.SuggestedStartLocation = PickerLocationId.Desktop;
-                picker.FileTypeChoices.Add("JSON", new[] { ".json" });
-                picker.SuggestedFileName = "FluentTaskScheduler_Settings";
-
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-                var file = await picker.PickSaveFileAsync();
-                if (file != null)
+                // Uses the shared Win32/WinRT picker helper — the plain WinRT FileSavePicker used
+                // here previously throws when the app is running elevated (4.4).
+                string? filePath = await Helpers.FilePickerHelper.PickSaveFileAsync(
+                    App.m_window!, "Export Settings", "JSON", "json", "FluentTaskScheduler_Settings");
+                if (!string.IsNullOrEmpty(filePath))
                 {
-                    SettingsService.ExportSettings(file.Path);
+                    SettingsService.ExportSettings(filePath);
                     await ShowDialog(
                         LocalizationService.GetString("Settings.Export.Success.Title", "Export Successful"),
-                        string.Format(LocalizationService.GetString("Settings.Export.Success.ContentFormat", "Settings exported to:\n{0}"), file.Path));
+                        string.Format(LocalizationService.GetString("Settings.Export.Success.ContentFormat", "Settings exported to:\n{0}"), filePath));
                 }
             }
             catch (Exception ex)
@@ -497,17 +492,13 @@ namespace FluentTaskScheduler
         {
             try
             {
-                var picker = new FileOpenPicker();
-                picker.SuggestedStartLocation = PickerLocationId.Desktop;
-                picker.FileTypeFilter.Add(".json");
-
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.m_window);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-                var file = await picker.PickSingleFileAsync();
-                if (file != null)
+                // Uses the shared Win32/WinRT picker helper — the plain WinRT FileOpenPicker used
+                // here previously throws when the app is running elevated (4.4).
+                string? filePath = await Helpers.FilePickerHelper.PickOpenFileAsync(
+                    App.m_window!, "Import Settings", "JSON", "json");
+                if (!string.IsNullOrEmpty(filePath))
                 {
-                    SettingsService.ImportSettings(file.Path);
+                    SettingsService.ImportSettings(filePath);
 
                     _isLoaded = false;
                     SettingsPage_Loaded(this, new RoutedEventArgs());
@@ -606,18 +597,8 @@ namespace FluentTaskScheduler
 
         // ── Helpers ────────────────────────────────────────────────────────────
 
-        private async System.Threading.Tasks.Task ShowDialog(string title, string message)
-        {
-            var dialog = new ContentDialog
-            {
-                Title = title,
-                Content = message,
-                CloseButtonText = LocalizationService.GetString("Dialog.Common.OK", "OK"),
-                XamlRoot = this.XamlRoot,
-                RequestedTheme = SettingsService.Theme
-            };
-            await dialog.ShowAsync();
-        }
+        private System.Threading.Tasks.Task ShowDialog(string title, string message) =>
+            Helpers.DialogHelper.ShowMessageAsync(this.XamlRoot, title, message);
 
         // ── Categories & Tags ──────────────────────────────────────────────────
 
@@ -644,8 +625,7 @@ namespace FluentTaskScheduler
             string cat = NewCategoryBox.Text.Trim();
             if (!string.IsNullOrEmpty(cat) && !SettingsService.SavedCategories.Contains(cat))
             {
-                SettingsService.SavedCategories.Add(cat);
-                SettingsService.SavedCategories = SettingsService.SavedCategories; // Trigger save
+                SettingsService.AddSavedCategory(cat);
                 NewCategoryBox.Text = "";
                 RefreshCategoriesList();
             }
@@ -655,8 +635,7 @@ namespace FluentTaskScheduler
         {
             if (sender is Button btn && btn.Tag is string cat)
             {
-                SettingsService.SavedCategories.Remove(cat);
-                SettingsService.SavedCategories = SettingsService.SavedCategories; // Trigger save
+                SettingsService.RemoveSavedCategory(cat);
                 RefreshCategoriesList();
             }
         }
@@ -672,8 +651,7 @@ namespace FluentTaskScheduler
             string tag = NewTagBox.Text.Trim();
             if (!string.IsNullOrEmpty(tag) && !SettingsService.SavedTags.Contains(tag))
             {
-                SettingsService.SavedTags.Add(tag);
-                SettingsService.SavedTags = SettingsService.SavedTags; // Trigger save
+                SettingsService.AddSavedTag(tag);
                 NewTagBox.Text = "";
                 RefreshTagsList();
             }
@@ -683,8 +661,7 @@ namespace FluentTaskScheduler
         {
             if (sender is Button btn && btn.Tag is string tag)
             {
-                SettingsService.SavedTags.Remove(tag);
-                SettingsService.SavedTags = SettingsService.SavedTags; // Trigger save
+                SettingsService.RemoveSavedTag(tag);
                 RefreshTagsList();
             }
         }
