@@ -13,6 +13,13 @@ namespace FluentTaskScheduler.ViewModels
 {
     public class ScriptTemplateModel
     {
+        /// <summary>
+        /// Stable identifier for a built-in script, used to look up its translated name and
+        /// description (Scripts.&lt;Id&gt;.Name / .Description). Empty for user templates, whose
+        /// text the user wrote themselves and must never be replaced by a translation.
+        /// </summary>
+        public string Id { get; set; } = "";
+
         public string Name { get; set; } = "";
         public string Description { get; set; } = "";
         public string Command { get; set; } = "";
@@ -41,9 +48,16 @@ namespace FluentTaskScheduler.ViewModels
         /// <summary>The subset of <see cref="_allScripts"/> matching the current search filter — this is what the UI binds to.</summary>
         public ObservableCollection<ScriptTemplateModel> Scripts { get; } = new();
 
-        public async Task LoadScriptsAsync()
+        /// <summary>
+        /// Loads built-in and user scripts. Pass <paramref name="force"/> to rebuild the list after
+        /// a language change — built-in names/descriptions are translated at load time, and
+        /// ScriptTemplateModel has no change notification, so the collection has to be repopulated
+        /// for the new locale to reach the UI.
+        /// </summary>
+        public async Task LoadScriptsAsync(bool force = false)
         {
-            if (_allScripts.Count > 0) return;
+            if (_allScripts.Count > 0 && !force) return;
+            if (force) _allScripts.Clear();
 
             // Built-in templates
             try
@@ -66,7 +80,11 @@ namespace FluentTaskScheduler.ViewModels
                 if (!string.IsNullOrWhiteSpace(json))
                 {
                     var data = JsonSerializer.Deserialize<List<ScriptTemplateModel>>(json);
-                    if (data != null) _allScripts.AddRange(data);
+                    if (data != null)
+                    {
+                        foreach (var script in data) LocalizeBuiltIn(script);
+                        _allScripts.AddRange(data);
+                    }
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Error loading scripts: {ex}"); }
@@ -74,6 +92,19 @@ namespace FluentTaskScheduler.ViewModels
             // User templates (appended after built-ins)
             LoadUserTemplates();
             ApplyFilter(_currentFilter);
+        }
+
+        /// <summary>
+        /// Swaps a built-in script's English name/description for the current language's. The text
+        /// shipped in Scripts.json stays the fallback, so a script with no Id — or a missing
+        /// translation — keeps reading correctly instead of showing a raw resource key.
+        /// </summary>
+        private static void LocalizeBuiltIn(ScriptTemplateModel script)
+        {
+            if (string.IsNullOrWhiteSpace(script.Id)) return;
+
+            script.Name = Services.LocalizationService.GetString($"Scripts.{script.Id}.Name", script.Name);
+            script.Description = Services.LocalizationService.GetString($"Scripts.{script.Id}.Description", script.Description);
         }
 
         public void AddUserTemplate(ScriptTemplateModel model)

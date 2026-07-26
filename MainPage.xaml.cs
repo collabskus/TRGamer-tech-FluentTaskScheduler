@@ -177,6 +177,19 @@ namespace FluentTaskScheduler
             Snooze3h.Content = L("Snooze.Duration.3h", "3 Hours");
             SnoozeReboot.Content = L("Snooze.Duration.Reboot", "Until Next Reboot");
             SnoozeCustom.Content = L("Snooze.Duration.Custom", "Custom Time...");
+
+            // Per-task snooze (task detail dialog) — reuses the global snooze's duration labels.
+            SnoozeTaskButton.Content = L("Task.Snooze.Label", "Snooze");
+            SnoozeTask30m.Text = L("Snooze.Duration.30m", "30 Minutes");
+            SnoozeTask1h.Text = L("Snooze.Duration.1h", "1 Hour");
+            SnoozeTask3h.Text = L("Snooze.Duration.3h", "3 Hours");
+            SnoozeTaskReboot.Text = L("Snooze.Duration.Reboot", "Until Next Reboot");
+            SnoozeTaskCustom.Text = L("Snooze.Duration.Custom", "Custom Time...");
+            SnoozeTaskCancel.Text = L("Snooze.Menu.Resume", "Resume Now");
+            TaskSnoozeCustomDialog.Title = L("Task.Snooze.Label", "Snooze");
+            TaskSnoozeCustomDialog.PrimaryButtonText = L("Snooze.Dialog.Confirm", "Snooze");
+            TaskSnoozeCustomDialog.CloseButtonText = L("Dialog.Common.Cancel", "Cancel");
+            TaskSnoozeCustomIntro.Text = L("Task.Snooze.CustomIntro", "Disable this task until:");
             SnoozeSuspendTriggers.Content = L("Snooze.SuspendTriggers", "Also suspend scheduled triggers");
             SnoozeSuspendHint.Text = L("Snooze.SuspendTriggersHint",
                 "Disables every enabled task through the Task Scheduler API and re-enables exactly those tasks when the snooze ends. Tasks under \\Microsoft\\ (Defender, Windows Update, maintenance) are never touched unless you enable the option below. Protected system tasks are skipped.");
@@ -279,6 +292,8 @@ namespace FluentTaskScheduler
             NavDashboard.Content = L("Main.Nav.Dashboard", "Dashboard");
             NavQuickActions.Content = L("Main.Nav.QuickActions", "Quick Actions");
             NavScriptLibrary.Content = L("Main.Nav.Library", "Library");
+            NavScriptEditor.Content = L("Main.Nav.ScriptEditor", "Script Editor");
+            FoldersHeader.Text = L("Main.FoldersHeader", "Folders");
             NavAdd.Content = L("Main.Nav.NewTask", "New Task");
             NavAllTasks.Content = L("Main.Nav.AllTasks", "All Tasks");
             NavSettings.Content = L("Main.Nav.Settings", "Settings");
@@ -1220,8 +1235,104 @@ namespace FluentTaskScheduler
             UpdateHistoryList();
             UpdateHistoryStats();
             
+            UpdateTaskSnoozeUi();
+
             TaskDetailsDialog.XamlRoot = this.Content.XamlRoot;
             await TaskDetailsDialog.ShowAsync();
+        }
+
+        // ── Per-task snooze ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Syncs the detail dialog's snooze controls with the selected task: the status line and
+        /// "Resume now" only make sense while that task is actually snoozed.
+        /// </summary>
+        private void UpdateTaskSnoozeUi()
+        {
+            var task = ViewModel.SelectedTask;
+            if (task == null) return;
+
+            string status = TaskSnoozeService.StatusTextFor(task.Path);
+            bool snoozed = !string.IsNullOrEmpty(status);
+
+            TaskSnoozeStatusText.Text = status;
+            TaskSnoozeStatusText.Visibility = snoozed ? Visibility.Visible : Visibility.Collapsed;
+            SnoozeTaskCancel.Visibility = snoozed ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void SnoozeTaskDuration_Click(object sender, RoutedEventArgs e)
+        {
+            var task = ViewModel.SelectedTask;
+            if (task == null) return;
+            if (sender is not MenuFlyoutItem item || !int.TryParse(item.Tag?.ToString(), out int minutes)) return;
+
+            TaskSnoozeService.Snooze(task.Path, TimeSpan.FromMinutes(minutes));
+            AfterTaskSnoozeChanged();
+        }
+
+        private void SnoozeTaskUntilReboot_Click(object sender, RoutedEventArgs e)
+        {
+            var task = ViewModel.SelectedTask;
+            if (task == null) return;
+
+            TaskSnoozeService.SnoozeUntilReboot(task.Path);
+            AfterTaskSnoozeChanged();
+        }
+
+        private void SnoozeTaskCancel_Click(object sender, RoutedEventArgs e)
+        {
+            var task = ViewModel.SelectedTask;
+            if (task == null) return;
+
+            TaskSnoozeService.Cancel(task.Path);
+            AfterTaskSnoozeChanged();
+        }
+
+        private async void SnoozeTaskCustom_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.SelectedTask == null) return;
+
+            TaskSnoozeCustomError.IsOpen = false;
+            TaskSnoozeCustomDate.Date = DateTimeOffset.Now;
+            TaskSnoozeCustomTime.Time = DateTime.Now.AddHours(1).TimeOfDay;
+
+            TaskSnoozeCustomDialog.XamlRoot = this.Content.XamlRoot;
+            await TaskSnoozeCustomDialog.ShowAsync();
+        }
+
+        private void TaskSnoozeCustomDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            var task = ViewModel.SelectedTask;
+            if (task == null) return;
+
+            try
+            {
+                var end = TaskSnoozeCustomDate.Date.Date + TaskSnoozeCustomTime.Time;
+                if (end <= DateTime.Now)
+                {
+                    args.Cancel = true;
+                    TaskSnoozeCustomError.Message = L("Snooze.Error.PastTime", "Pick a time in the future.");
+                    TaskSnoozeCustomError.IsOpen = true;
+                    return;
+                }
+
+                TaskSnoozeService.SnoozeUntilLocalTime(task.Path, end);
+                AfterTaskSnoozeChanged();
+            }
+            catch (Exception ex)
+            {
+                args.Cancel = true;
+                LogService.Error($"Failed to snooze task '{task.Path}' until a custom time.", ex);
+                TaskSnoozeCustomError.Message = ex.Message;
+                TaskSnoozeCustomError.IsOpen = true;
+            }
+        }
+
+        /// <summary>Refreshes the dialog and the task list after a task's snooze state changed.</summary>
+        private void AfterTaskSnoozeChanged()
+        {
+            UpdateTaskSnoozeUi();
+            _ = ViewModel.LoadTasksAsync();
         }
 
         private void CategoryBadge_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)

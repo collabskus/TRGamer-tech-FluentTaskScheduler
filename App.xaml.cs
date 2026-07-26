@@ -387,6 +387,7 @@ namespace FluentTaskScheduler
                 // Release the event-log subscription and its handles before tearing the process down.
                 Services.TaskPipelineService.Stop();
                 Services.SnoozeService.Shutdown();
+                Services.TaskSnoozeService.Shutdown();
                 Services.ReminderService.Stop();
                 Services.TrayIconService.Dispose();
                 SS.Flush();
@@ -399,6 +400,11 @@ namespace FluentTaskScheduler
 
             // v1.9: restore/expire any stored global snooze, then start the pipeline watcher.
             Services.SnoozeService.Initialize();
+
+            // Per-task snoozes are restored the same way: anything whose window elapsed while the
+            // app was closed gets re-enabled here.
+            Services.TaskSnoozeService.Initialize();
+
             Services.SnoozeService.SnoozeChanged += (s, args) => Services.TrayIconService.RefreshSnoozeState();
             Services.TrayIconService.RefreshSnoozeState();
             Services.TaskPipelineService.Start();

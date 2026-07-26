@@ -56,8 +56,8 @@
                 <StackPanel>
                     <StackPanel x:Name="FolderSection" Visibility="{x:Bind NavView.IsPaneOpen, Mode=OneWay}">
                         <Grid Margin="10,5,10,4">
-                            <TextBlock Text="Folders" 
-                                      FontWeight="SemiBold" 
+                            <TextBlock x:Name="FoldersHeader" Text="Folders"
+                                      FontWeight="SemiBold"
                                       VerticalAlignment="Center"
                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
@@ -593,9 +593,27 @@
                         <Button x:Name="RunTaskButton" Content="Run Now" Click="RunTask_Click" Style="{StaticResource AccentButtonStyle}" IsEnabled="{x:Bind ViewModel.SelectedTask.IsReadOnlyFallback, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"/>
                         <Button x:Name="StopTaskButton" Content="Stop" Click="StopTask_Click" IsEnabled="{x:Bind ViewModel.SelectedTask.IsReadOnlyFallback, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"/>
                         <Button x:Name="EditTaskButton" Content="Edit" Click="EditTask_Click" IsEnabled="{x:Bind ViewModel.SelectedTask.IsReadOnlyFallback, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"/>
+                        <Button x:Name="SnoozeTaskButton" Content="Snooze"
+                                IsEnabled="{x:Bind ViewModel.SelectedTask.IsReadOnlyFallback, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}">
+                            <Button.Flyout>
+                                <MenuFlyout x:Name="SnoozeTaskFlyout" Placement="Top">
+                                    <MenuFlyoutItem x:Name="SnoozeTask30m" Text="30 minutes" Tag="30" Click="SnoozeTaskDuration_Click"/>
+                                    <MenuFlyoutItem x:Name="SnoozeTask1h" Text="1 hour" Tag="60" Click="SnoozeTaskDuration_Click"/>
+                                    <MenuFlyoutItem x:Name="SnoozeTask3h" Text="3 hours" Tag="180" Click="SnoozeTaskDuration_Click"/>
+                                    <MenuFlyoutItem x:Name="SnoozeTaskReboot" Text="Until restart" Click="SnoozeTaskUntilReboot_Click"/>
+                                    <MenuFlyoutSeparator/>
+                                    <MenuFlyoutItem x:Name="SnoozeTaskCustom" Text="Custom..." Click="SnoozeTaskCustom_Click"/>
+                                    <MenuFlyoutItem x:Name="SnoozeTaskCancel" Text="Resume now" Click="SnoozeTaskCancel_Click"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
                         <Button x:Name="ExportTaskButton" Content="Export" Click="ExportTask_Click"/>
                         <Button x:Name="DeleteTaskButton" Content="Delete" Click="DeleteTask_Click" IsEnabled="{x:Bind ViewModel.SelectedTask.IsReadOnlyFallback, Converter={StaticResource InverseBoolConverter}, Mode=OneWay}"/>
                     </StackPanel>
+
+                    <TextBlock x:Name="TaskSnoozeStatusText" Margin="0,8,0,0" Visibility="Collapsed"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                 </StackPanel>
             </ScrollViewer>
         </ContentDialog>
@@ -1224,6 +1242,20 @@
                 <InfoBar x:Name="SnoozeMicrosoftWarning" IsOpen="False" Severity="Warning" IsClosable="False" Margin="28,-8,0,0"/>
 
                 <InfoBar x:Name="SnoozeDialogError" IsOpen="False" Severity="Error" IsClosable="True"/>
+            </StackPanel>
+        </ContentDialog>
+
+        <!-- Custom end time for a single task's snooze -->
+        <ContentDialog x:Name="TaskSnoozeCustomDialog"
+                       DefaultButton="Primary"
+                       PrimaryButtonClick="TaskSnoozeCustomDialog_PrimaryButtonClick">
+            <StackPanel Spacing="14" MinWidth="380" Margin="0,8,0,0">
+                <TextBlock x:Name="TaskSnoozeCustomIntro" TextWrapping="Wrap" Opacity="0.8"/>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <DatePicker x:Name="TaskSnoozeCustomDate"/>
+                    <TimePicker x:Name="TaskSnoozeCustomTime" ClockIdentifier="24HourClock"/>
+                </StackPanel>
+                <InfoBar x:Name="TaskSnoozeCustomError" IsOpen="False" Severity="Error" IsClosable="True"/>
             </StackPanel>
         </ContentDialog>
 

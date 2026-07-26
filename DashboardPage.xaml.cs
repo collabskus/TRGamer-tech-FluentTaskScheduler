@@ -19,15 +19,31 @@ namespace FluentTaskScheduler
             this.InitializeComponent();
             ViewModel = new DashboardViewModel();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
-            LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
-            ViewModel.HealthScoreChanged += DashboardViewModel_HealthScoreChanged;
-            ApplyLocalizedUi();
 
-            // NavigationCacheMode.Required keeps this page instance alive for the lifetime of its
-            // Frame — without this, the static LanguageChanged subscription above (and the
-            // ViewModel's own) would keep the page, its Frame, and its whole window alive forever
-            // even after the window is closed (see 3.3).
+            // Subscriptions are armed in Loaded and torn down in Unloaded, never in this
+            // constructor. NavigationCacheMode.Required means this instance is reused for the life
+            // of its Frame, so the constructor runs exactly once: setting them up here left the
+            // page permanently deaf after the first navigate-away unsubscribed it, freezing the
+            // labels in whatever language was active at first construction and stranding the view
+            // model's filter labels in the old locale (which then matched nothing and zeroed out
+            // every statistic). Tearing down on Unloaded still avoids the leak in 3.3 — the page,
+            // its Frame and its window stay collectable once the window closes.
+            this.Loaded += DashboardPage_Loaded;
             this.Unloaded += DashboardPage_Unloaded;
+        }
+
+        private void DashboardPage_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            // Loaded fires again every time a cached page is navigated back to, so re-arm
+            // idempotently (-= before += is a no-op when not currently subscribed).
+            LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
+            LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
+            ViewModel.HealthScoreChanged -= DashboardViewModel_HealthScoreChanged;
+            ViewModel.HealthScoreChanged += DashboardViewModel_HealthScoreChanged;
+            ViewModel.Resume();
+
+            // Picks up any language change that happened while this page was off-screen.
+            ApplyLocalizedUi();
         }
 
         private void DashboardPage_Unloaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

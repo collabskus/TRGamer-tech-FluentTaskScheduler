@@ -800,4 +800,42 @@ Jetzt App neustarten?</value></data>
   <data name="Tray.NewWindow" xml:space="preserve"><value>Neues Fenster</value></data>
   <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(Keine ausgeblendeten Fenster)</value></data>
   <data name="Trigger.Run" xml:space="preserve"><value>Ausführen:</value></data>
+  <data name="Dialog.Sess.ConsoleConnect" xml:space="preserve"><value>Konsolenverbindung</value></data>
+  <data name="Dialog.Sess.ConsoleDisconnect" xml:space="preserve"><value>Konsolentrennung</value></data>
+  <data name="Dialog.Sess.RemoteConnect" xml:space="preserve"><value>Remoteverbindung</value></data>
+  <data name="Dialog.Sess.RemoteDisconnect" xml:space="preserve"><value>Remotetrennung</value></data>
+  <data name="Dialog.Trigger.Event" xml:space="preserve"><value>Bei einem Ereignis</value></data>
+  <data name="Dialog.Trigger.Once" xml:space="preserve"><value>Einmal</value></data>
+  <data name="Dialog.Trigger.__Unsupported" xml:space="preserve"><value>Nicht unterstützter Trigger</value></data>
+  <data name="Main.FoldersHeader" xml:space="preserve"><value>Ordner</value></data>
+  <data name="Main.Nav.ScriptEditor" xml:space="preserve"><value>Skript-Editor</value></data>
+  <data name="Scripts.BatteryReport.Description" xml:space="preserve"><value>Erstellt einen Bericht zum Akkuzustand in Ihrem Benutzerordner.</value></data>
+  <data name="Scripts.BatteryReport.Name" xml:space="preserve"><value>Akkubericht</value></data>
+  <data name="Scripts.CheckDisk.Description" xml:space="preserve"><value>Prüft das Laufwerk C: auf Fehler, ohne sie zu beheben (auch im laufenden Betrieb sicher).</value></data>
+  <data name="Scripts.CheckDisk.Name" xml:space="preserve"><value>Datenträgerprüfung (nur Scan)</value></data>
+  <data name="Scripts.ClearTempFolder.Description" xml:space="preserve"><value>Löscht alle Dateien im Temp-Ordner des aktuellen Benutzers, um Speicherplatz freizugeben.</value></data>
+  <data name="Scripts.ClearTempFolder.Name" xml:space="preserve"><value>Temp-Ordner leeren</value></data>
+  <data name="Scripts.DiskCleanup.Description" xml:space="preserve"><value>Führt die Datenträgerbereinigung auf dem Systemlaufwerk aus.</value></data>
+  <data name="Scripts.DiskCleanup.Name" xml:space="preserve"><value>Datenträgerbereinigung (System)</value></data>
+  <data name="Scripts.EmptyRecycleBin.Description" xml:space="preserve"><value>Löscht alle Elemente im Papierkorb endgültig.</value></data>
+  <data name="Scripts.EmptyRecycleBin.Name" xml:space="preserve"><value>Papierkorb leeren</value></data>
+  <data name="Scripts.ExportIpConfig.Description" xml:space="preserve"><value>Speichert die vollständigen IP-Konfigurationsdetails in Ihrem Benutzerordner.</value></data>
+  <data name="Scripts.ExportIpConfig.Name" xml:space="preserve"><value>IP-Konfiguration exportieren</value></data>
+  <data name="Scripts.FlushDns.Description" xml:space="preserve"><value>Leert den DNS-Auflösungscache.</value></data>
+  <data name="Scripts.FlushDns.Name" xml:space="preserve"><value>DNS-Cache leeren</value></data>
+  <data name="Scripts.NetworkCheck.Description" xml:space="preserve"><value>Pingt Google DNS an, um die Internetverbindung zu prüfen.</value></data>
+  <data name="Scripts.NetworkCheck.Name" xml:space="preserve"><value>Netzwerkverbindungsprüfung</value></data>
+  <data name="Scripts.Reboot.Description" xml:space="preserve"><value>Startet den Computer nach einer Stunde neu.</value></data>
+  <data name="Scripts.Reboot.Name" xml:space="preserve"><value>Computer neu starten</value></data>
+  <data name="Scripts.RestartPrintSpooler.Description" xml:space="preserve"><value>Startet den Druckwarteschlangendienst neu, um hängende Druckaufträge zu beheben.</value></data>
+  <data name="Scripts.RestartPrintSpooler.Name" xml:space="preserve"><value>Druckwarteschlange neu starten</value></data>
+  <data name="Scripts.Shutdown.Description" xml:space="preserve"><value>Fährt den Computer nach einer Stunde herunter.</value></data>
+  <data name="Scripts.Shutdown.Name" xml:space="preserve"><value>Computer herunterfahren</value></data>
+  <data name="Scripts.SystemFileChecker.Description" xml:space="preserve"><value>Sucht nach beschädigten Systemdateien und stellt sie wieder her.</value></data>
+  <data name="Scripts.SystemFileChecker.Name" xml:space="preserve"><value>Systemdateiprüfung</value></data>
+  <data name="Scripts.SystemInfoReport.Description" xml:space="preserve"><value>Erstellt einen detaillierten Systembericht und speichert ihn in einer Datei.</value></data>
+  <data name="Scripts.SystemInfoReport.Name" xml:space="preserve"><value>Systeminformationsbericht</value></data>
+  <data name="Task.Snooze.Label" xml:space="preserve"><value>Schlummern</value></data>
+  <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>Diese Aufgabe deaktivieren bis:</value></data>
+  <data name="Task.Snooze.Status" xml:space="preserve"><value>Schlummert bis {0}</value></data>
 </root>

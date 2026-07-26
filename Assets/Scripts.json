@@ -1,5 +1,6 @@
 [
   {
+    "Id": "SystemFileChecker",
     "Name": "System File Checker",
     "Description": "Scans for and restores corrupted system files.",
     "Command": "sfc",
@@ -7,6 +8,7 @@
     "RunAsAdmin": true
   },
   {
+    "Id": "DiskCleanup",
     "Name": "Disk Cleanup (System)",
     "Description": "Runs Disk Cleanup on the system drive.",
     "Command": "cleanmgr.exe",
@@ -14,6 +16,7 @@
     "RunAsAdmin": true
   },
   {
+    "Id": "CheckDisk",
     "Name": "Check Disk (Scan Only)",
     "Description": "Scans the C: drive for errors without fixing them (safe to run while in use).",
     "Command": "chkdsk",
@@ -21,6 +24,7 @@
     "RunAsAdmin": true
   },
   {
+    "Id": "ClearTempFolder",
     "Name": "Clear Temp Folder",
     "Description": "Deletes all files in the current user's Temp folder to free up space.",
     "Command": "powershell.exe",
@@ -28,6 +32,7 @@
     "RunAsAdmin": false
   },
   {
+    "Id": "SystemInfoReport",
     "Name": "System Info Report",
     "Description": "Generates a detailed system report and saves it to a file.",
     "Command": "cmd.exe",
@@ -35,6 +40,7 @@
     "RunAsAdmin": false
   },
   {
+    "Id": "NetworkCheck",
     "Name": "Network Connectivity Check",
     "Description": "Pings Google DNS to check internet connectivity.",
     "Command": "ping.exe",
@@ -42,6 +48,7 @@
     "RunAsAdmin": false
   },
   {
+    "Id": "FlushDns",
     "Name": "Flush DNS Cache",
     "Description": "Clears the DNS resolver cache.",
     "Command": "ipconfig.exe",
@@ -49,6 +56,7 @@
     "RunAsAdmin": false
   },
   {
+    "Id": "Shutdown",
     "Name": "Shutdown Computer",
     "Description": "Shuts down the computer after one hour.",
     "Command": "shutdown.exe",
@@ -56,6 +64,7 @@
     "RunAsAdmin": true
   },
   {
+    "Id": "Reboot",
     "Name": "Reboot Computer",
     "Description": "Restarts the computer after one hour.",
     "Command": "shutdown.exe",
@@ -63,6 +72,7 @@
     "RunAsAdmin": true
   },
   {
+    "Id": "RestartPrintSpooler",
     "Name": "Restart Print Spooler",
     "Description": "Restarts the Print Spooler service to fix stuck print jobs.",
     "Command": "powershell.exe",
@@ -70,6 +80,7 @@
     "RunAsAdmin": true
   },
   {
+    "Id": "BatteryReport",
     "Name": "Battery Report",
     "Description": "Generates a battery health report in your user folder.",
     "Command": "cmd.exe",
@@ -77,6 +88,7 @@
     "RunAsAdmin": true
   },
   {
+    "Id": "EmptyRecycleBin",
     "Name": "Empty Recycle Bin",
     "Description": "Permanently deletes all items in the Recycle Bin.",
     "Command": "powershell.exe",
@@ -84,6 +96,7 @@
     "RunAsAdmin": false
   },
   {
+    "Id": "ExportIpConfig",
     "Name": "Export IP Configuration",
     "Description": "Saves full IP configuration details to your user folder.",
     "Command": "cmd.exe",

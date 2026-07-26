@@ -170,6 +170,21 @@ namespace FluentTaskScheduler.ViewModels
             _ = LoadDashboardData();
         }
 
+        /// <summary>
+        /// Re-arms the static LocalizationService subscription after <see cref="Cleanup"/>, and
+        /// re-syncs the filter labels with the current language. Called every time the (cached)
+        /// dashboard page is shown, so a language switch that happened while it was off-screen is
+        /// picked up instead of leaving the "All tags"/"All categories" selection stranded in the
+        /// previous locale — where it matched no chip and zeroed out every statistic.
+        /// Idempotent: safe to call when already subscribed.
+        /// </summary>
+        public void Resume()
+        {
+            LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
+            LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
+            RefreshFilterLabels();
+        }
+
         /// <summary>Unsubscribes from the static LocalizationService event — see 3.3.</summary>
         public void Cleanup()
         {

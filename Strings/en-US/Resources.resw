@@ -800,5 +800,43 @@ Restart now to apply the update?</value></data>
   <data name="Tray.NewWindow" xml:space="preserve"><value>New Window</value></data>
   <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(No hidden windows)</value></data>
   <data name="Trigger.Run" xml:space="preserve"><value>Run:</value></data>
+  <data name="Dialog.Sess.ConsoleConnect" xml:space="preserve"><value>Console connect</value></data>
+  <data name="Dialog.Sess.ConsoleDisconnect" xml:space="preserve"><value>Console disconnect</value></data>
+  <data name="Dialog.Sess.RemoteConnect" xml:space="preserve"><value>Remote connect</value></data>
+  <data name="Dialog.Sess.RemoteDisconnect" xml:space="preserve"><value>Remote disconnect</value></data>
+  <data name="Dialog.Trigger.Event" xml:space="preserve"><value>On an event</value></data>
+  <data name="Dialog.Trigger.Once" xml:space="preserve"><value>One time</value></data>
+  <data name="Dialog.Trigger.__Unsupported" xml:space="preserve"><value>Unsupported trigger</value></data>
+  <data name="Main.FoldersHeader" xml:space="preserve"><value>Folders</value></data>
+  <data name="Main.Nav.ScriptEditor" xml:space="preserve"><value>Script Editor</value></data>
+  <data name="Scripts.BatteryReport.Description" xml:space="preserve"><value>Generates a battery health report in your user folder.</value></data>
+  <data name="Scripts.BatteryReport.Name" xml:space="preserve"><value>Battery Report</value></data>
+  <data name="Scripts.CheckDisk.Description" xml:space="preserve"><value>Scans the C: drive for errors without fixing them (safe to run while in use).</value></data>
+  <data name="Scripts.CheckDisk.Name" xml:space="preserve"><value>Check Disk (Scan Only)</value></data>
+  <data name="Scripts.ClearTempFolder.Description" xml:space="preserve"><value>Deletes all files in the current user's Temp folder to free up space.</value></data>
+  <data name="Scripts.ClearTempFolder.Name" xml:space="preserve"><value>Clear Temp Folder</value></data>
+  <data name="Scripts.DiskCleanup.Description" xml:space="preserve"><value>Runs Disk Cleanup on the system drive.</value></data>
+  <data name="Scripts.DiskCleanup.Name" xml:space="preserve"><value>Disk Cleanup (System)</value></data>
+  <data name="Scripts.EmptyRecycleBin.Description" xml:space="preserve"><value>Permanently deletes all items in the Recycle Bin.</value></data>
+  <data name="Scripts.EmptyRecycleBin.Name" xml:space="preserve"><value>Empty Recycle Bin</value></data>
+  <data name="Scripts.ExportIpConfig.Description" xml:space="preserve"><value>Saves full IP configuration details to your user folder.</value></data>
+  <data name="Scripts.ExportIpConfig.Name" xml:space="preserve"><value>Export IP Configuration</value></data>
+  <data name="Scripts.FlushDns.Description" xml:space="preserve"><value>Clears the DNS resolver cache.</value></data>
+  <data name="Scripts.FlushDns.Name" xml:space="preserve"><value>Flush DNS Cache</value></data>
+  <data name="Scripts.NetworkCheck.Description" xml:space="preserve"><value>Pings Google DNS to check internet connectivity.</value></data>
+  <data name="Scripts.NetworkCheck.Name" xml:space="preserve"><value>Network Connectivity Check</value></data>
+  <data name="Scripts.Reboot.Description" xml:space="preserve"><value>Restarts the computer after one hour.</value></data>
+  <data name="Scripts.Reboot.Name" xml:space="preserve"><value>Reboot Computer</value></data>
+  <data name="Scripts.RestartPrintSpooler.Description" xml:space="preserve"><value>Restarts the Print Spooler service to fix stuck print jobs.</value></data>
+  <data name="Scripts.RestartPrintSpooler.Name" xml:space="preserve"><value>Restart Print Spooler</value></data>
+  <data name="Scripts.Shutdown.Description" xml:space="preserve"><value>Shuts down the computer after one hour.</value></data>
+  <data name="Scripts.Shutdown.Name" xml:space="preserve"><value>Shutdown Computer</value></data>
+  <data name="Scripts.SystemFileChecker.Description" xml:space="preserve"><value>Scans for and restores corrupted system files.</value></data>
+  <data name="Scripts.SystemFileChecker.Name" xml:space="preserve"><value>System File Checker</value></data>
+  <data name="Scripts.SystemInfoReport.Description" xml:space="preserve"><value>Generates a detailed system report and saves it to a file.</value></data>
+  <data name="Scripts.SystemInfoReport.Name" xml:space="preserve"><value>System Info Report</value></data>
+  <data name="Task.Snooze.Label" xml:space="preserve"><value>Snooze</value></data>
+  <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>Disable this task until:</value></data>
+  <data name="Task.Snooze.Status" xml:space="preserve"><value>Snoozed until {0}</value></data>
 </root>
 

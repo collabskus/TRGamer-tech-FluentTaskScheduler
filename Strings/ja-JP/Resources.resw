@@ -800,4 +800,42 @@
   <data name="Tray.NewWindow" xml:space="preserve"><value>新しいウィンドウ</value></data>
   <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(非表示のウィンドウはありません)</value></data>
   <data name="Trigger.Run" xml:space="preserve"><value>実行:</value></data>
+  <data name="Dialog.Sess.ConsoleConnect" xml:space="preserve"><value>コンソール接続</value></data>
+  <data name="Dialog.Sess.ConsoleDisconnect" xml:space="preserve"><value>コンソール切断</value></data>
+  <data name="Dialog.Sess.RemoteConnect" xml:space="preserve"><value>リモート接続</value></data>
+  <data name="Dialog.Sess.RemoteDisconnect" xml:space="preserve"><value>リモート切断</value></data>
+  <data name="Dialog.Trigger.Event" xml:space="preserve"><value>イベント時</value></data>
+  <data name="Dialog.Trigger.Once" xml:space="preserve"><value>1 回</value></data>
+  <data name="Dialog.Trigger.__Unsupported" xml:space="preserve"><value>サポートされていないトリガー</value></data>
+  <data name="Main.FoldersHeader" xml:space="preserve"><value>フォルダー</value></data>
+  <data name="Main.Nav.ScriptEditor" xml:space="preserve"><value>スクリプト エディター</value></data>
+  <data name="Scripts.BatteryReport.Description" xml:space="preserve"><value>ユーザー フォルダーにバッテリーの状態レポートを生成します。</value></data>
+  <data name="Scripts.BatteryReport.Name" xml:space="preserve"><value>バッテリー レポート</value></data>
+  <data name="Scripts.CheckDisk.Description" xml:space="preserve"><value>C: ドライブのエラーを修復せずにスキャンします (使用中でも安全です)。</value></data>
+  <data name="Scripts.CheckDisk.Name" xml:space="preserve"><value>チェック ディスク (スキャンのみ)</value></data>
+  <data name="Scripts.ClearTempFolder.Description" xml:space="preserve"><value>現在のユーザーの Temp フォルダー内のすべてのファイルを削除して空き容量を増やします。</value></data>
+  <data name="Scripts.ClearTempFolder.Name" xml:space="preserve"><value>Temp フォルダーを消去</value></data>
+  <data name="Scripts.DiskCleanup.Description" xml:space="preserve"><value>システム ドライブでディスク クリーンアップを実行します。</value></data>
+  <data name="Scripts.DiskCleanup.Name" xml:space="preserve"><value>ディスク クリーンアップ (システム)</value></data>
+  <data name="Scripts.EmptyRecycleBin.Description" xml:space="preserve"><value>ごみ箱内のすべての項目を完全に削除します。</value></data>
+  <data name="Scripts.EmptyRecycleBin.Name" xml:space="preserve"><value>ごみ箱を空にする</value></data>
+  <data name="Scripts.ExportIpConfig.Description" xml:space="preserve"><value>完全な IP 構成の詳細をユーザー フォルダーに保存します。</value></data>
+  <data name="Scripts.ExportIpConfig.Name" xml:space="preserve"><value>IP 構成をエクスポート</value></data>
+  <data name="Scripts.FlushDns.Description" xml:space="preserve"><value>DNS リゾルバー キャッシュをクリアします。</value></data>
+  <data name="Scripts.FlushDns.Name" xml:space="preserve"><value>DNS キャッシュをクリア</value></data>
+  <data name="Scripts.NetworkCheck.Description" xml:space="preserve"><value>Google DNS に ping を送信してインターネット接続を確認します。</value></data>
+  <data name="Scripts.NetworkCheck.Name" xml:space="preserve"><value>ネットワーク接続チェック</value></data>
+  <data name="Scripts.Reboot.Description" xml:space="preserve"><value>1 時間後にコンピューターを再起動します。</value></data>
+  <data name="Scripts.Reboot.Name" xml:space="preserve"><value>コンピューターを再起動</value></data>
+  <data name="Scripts.RestartPrintSpooler.Description" xml:space="preserve"><value>印刷スプーラー サービスを再起動して、停止した印刷ジョブを修復します。</value></data>
+  <data name="Scripts.RestartPrintSpooler.Name" xml:space="preserve"><value>印刷スプーラーを再起動</value></data>
+  <data name="Scripts.Shutdown.Description" xml:space="preserve"><value>1 時間後にコンピューターをシャットダウンします。</value></data>
+  <data name="Scripts.Shutdown.Name" xml:space="preserve"><value>コンピューターをシャットダウン</value></data>
+  <data name="Scripts.SystemFileChecker.Description" xml:space="preserve"><value>破損したシステム ファイルをスキャンして復元します。</value></data>
+  <data name="Scripts.SystemFileChecker.Name" xml:space="preserve"><value>システム ファイル チェッカー</value></data>
+  <data name="Scripts.SystemInfoReport.Description" xml:space="preserve"><value>詳細なシステム レポートを生成してファイルに保存します。</value></data>
+  <data name="Scripts.SystemInfoReport.Name" xml:space="preserve"><value>システム情報レポート</value></data>
+  <data name="Task.Snooze.Label" xml:space="preserve"><value>スヌーズ</value></data>
+  <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>このタスクを次の時刻まで無効にする:</value></data>
+  <data name="Task.Snooze.Status" xml:space="preserve"><value>{0} までスヌーズ中</value></data>
 </root>

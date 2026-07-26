@@ -803,6 +803,44 @@
   <data name="Tray.NewWindow" xml:space="preserve"><value>新建窗口</value></data>
   <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(没有隐藏的窗口)</value></data>
   <data name="Trigger.Run" xml:space="preserve"><value>运行:</value></data>
+  <data name="Dialog.Sess.ConsoleConnect" xml:space="preserve"><value>控制台连接</value></data>
+  <data name="Dialog.Sess.ConsoleDisconnect" xml:space="preserve"><value>控制台断开连接</value></data>
+  <data name="Dialog.Sess.RemoteConnect" xml:space="preserve"><value>远程连接</value></data>
+  <data name="Dialog.Sess.RemoteDisconnect" xml:space="preserve"><value>远程断开连接</value></data>
+  <data name="Dialog.Trigger.Event" xml:space="preserve"><value>发生事件时</value></data>
+  <data name="Dialog.Trigger.Once" xml:space="preserve"><value>一次</value></data>
+  <data name="Dialog.Trigger.__Unsupported" xml:space="preserve"><value>不支持的触发器</value></data>
+  <data name="Main.FoldersHeader" xml:space="preserve"><value>文件夹</value></data>
+  <data name="Main.Nav.ScriptEditor" xml:space="preserve"><value>脚本编辑器</value></data>
+  <data name="Scripts.BatteryReport.Description" xml:space="preserve"><value>在您的用户文件夹中生成电池运行状况报告。</value></data>
+  <data name="Scripts.BatteryReport.Name" xml:space="preserve"><value>电池报告</value></data>
+  <data name="Scripts.CheckDisk.Description" xml:space="preserve"><value>扫描 C: 驱动器的错误但不修复（使用中运行也安全）。</value></data>
+  <data name="Scripts.CheckDisk.Name" xml:space="preserve"><value>检查磁盘（仅扫描）</value></data>
+  <data name="Scripts.ClearTempFolder.Description" xml:space="preserve"><value>删除当前用户 Temp 文件夹中的所有文件以释放空间。</value></data>
+  <data name="Scripts.ClearTempFolder.Name" xml:space="preserve"><value>清空临时文件夹</value></data>
+  <data name="Scripts.DiskCleanup.Description" xml:space="preserve"><value>在系统驱动器上运行磁盘清理。</value></data>
+  <data name="Scripts.DiskCleanup.Name" xml:space="preserve"><value>磁盘清理（系统）</value></data>
+  <data name="Scripts.EmptyRecycleBin.Description" xml:space="preserve"><value>永久删除回收站中的所有项目。</value></data>
+  <data name="Scripts.EmptyRecycleBin.Name" xml:space="preserve"><value>清空回收站</value></data>
+  <data name="Scripts.ExportIpConfig.Description" xml:space="preserve"><value>将完整的 IP 配置详细信息保存到您的用户文件夹。</value></data>
+  <data name="Scripts.ExportIpConfig.Name" xml:space="preserve"><value>导出 IP 配置</value></data>
+  <data name="Scripts.FlushDns.Description" xml:space="preserve"><value>清除 DNS 解析器缓存。</value></data>
+  <data name="Scripts.FlushDns.Name" xml:space="preserve"><value>刷新 DNS 缓存</value></data>
+  <data name="Scripts.NetworkCheck.Description" xml:space="preserve"><value>Ping Google DNS 以检查 Internet 连接。</value></data>
+  <data name="Scripts.NetworkCheck.Name" xml:space="preserve"><value>网络连接检查</value></data>
+  <data name="Scripts.Reboot.Description" xml:space="preserve"><value>一小时后重启计算机。</value></data>
+  <data name="Scripts.Reboot.Name" xml:space="preserve"><value>重启计算机</value></data>
+  <data name="Scripts.RestartPrintSpooler.Description" xml:space="preserve"><value>重启打印后台处理程序服务以修复卡住的打印作业。</value></data>
+  <data name="Scripts.RestartPrintSpooler.Name" xml:space="preserve"><value>重启打印后台处理程序</value></data>
+  <data name="Scripts.Shutdown.Description" xml:space="preserve"><value>一小时后关闭计算机。</value></data>
+  <data name="Scripts.Shutdown.Name" xml:space="preserve"><value>关闭计算机</value></data>
+  <data name="Scripts.SystemFileChecker.Description" xml:space="preserve"><value>扫描并修复损坏的系统文件。</value></data>
+  <data name="Scripts.SystemFileChecker.Name" xml:space="preserve"><value>系统文件检查器</value></data>
+  <data name="Scripts.SystemInfoReport.Description" xml:space="preserve"><value>生成详细的系统报告并保存到文件。</value></data>
+  <data name="Scripts.SystemInfoReport.Name" xml:space="preserve"><value>系统信息报告</value></data>
+  <data name="Task.Snooze.Label" xml:space="preserve"><value>暂停</value></data>
+  <data name="Task.Snooze.CustomIntro" xml:space="preserve"><value>将此任务禁用至：</value></data>
+  <data name="Task.Snooze.Status" xml:space="preserve"><value>已暂停至 {0}</value></data>
 </root>
 
 

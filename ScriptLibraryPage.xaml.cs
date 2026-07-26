@@ -32,10 +32,15 @@ namespace FluentTaskScheduler
         private void LocalizationService_LanguageChanged(object? sender, EventArgs e)
         {
             if (DispatcherQueue == null) return;
-            DispatcherQueue.TryEnqueue(() =>
+            DispatcherQueue.TryEnqueue(async () =>
             {
                 ApplyLocalizedUi();
                 TemplatesViewModel.Load();
+
+                // Built-in script names/descriptions are translated as they are read out of
+                // Scripts.json, so the list has to be rebuilt for the new language to show.
+                await ViewModel.LoadScriptsAsync(force: true);
+
                 UpdateNoResultsVisibility();
             });
         }
