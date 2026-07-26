@@ -191,19 +191,17 @@ namespace FluentTaskScheduler
                 // usage: FluentTaskScheduler.exe --run "Path"
                 string command = args[1].ToLowerInvariant();
                 string? param = args.Length > 2 ? args[2] : null;
-                bool jsonOutput = args.Contains("--json");
                 int exitCode = 0;
 
                 void PrintUsage()
                 {
                     Console.WriteLine("FluentTaskScheduler.exe usage:");
-                    Console.WriteLine("  --list                                  List all scheduled tasks");
+                    Console.WriteLine("  --list                                  List all scheduled tasks (JSON)");
                     Console.WriteLine("  --run <TaskPath>                        Run a task");
                     Console.WriteLine("  --enable <TaskPath>                     Enable a task");
                     Console.WriteLine("  --disable <TaskPath>                    Disable a task");
                     Console.WriteLine("  --export-history <TaskPath> [--output <file>]   Export task history to CSV");
                     Console.WriteLine("  --help                                  Show this usage text");
-                    Console.WriteLine("Add --json to --list to emit machine-readable output (default: JSON).");
                 }
 
                 var service = new global::FluentTaskScheduler.Services.TaskServiceWrapper();
@@ -508,13 +506,15 @@ namespace FluentTaskScheduler
                 return appTitle;
             }
 
-            return $"{appTitle} — {windowName}";
+            // windowName is an internal identifier ("Window N"); the visible suffix is localized
+            // separately so a non-English UI doesn't show the literal English word "Window" (3.2).
+            string suffix = windowName.StartsWith("Window ", StringComparison.OrdinalIgnoreCase) && int.TryParse(windowName.AsSpan(7), out int n)
+                ? string.Format(Services.LocalizationService.GetString("App.WindowTitleSuffixFormat", "Window {0}"), n)
+                : windowName;
+
+            return $"{appTitle} — {suffix}";
         }
 
-        private void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
-        {
-            // Handled per-window inside CreateAndRegisterWindow
-        }
 
         private void OnToastActivated(ToastNotificationActivatedEventArgsCompat e)
         {

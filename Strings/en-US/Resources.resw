@@ -737,5 +737,68 @@ Restart now to apply the update?</value></data>
   <data name="Library.Search.Placeholder" xml:space="preserve"><value>Search...</value></data>
   <data name="Library.Search.NoTemplates" xml:space="preserve"><value>No templates match your search.</value></data>
   <data name="Library.Search.NoScripts" xml:space="preserve"><value>No scripts match your search.</value></data>
+
+  <!-- Added while closing localization gaps found during the S3 audit pass (3.2) -->
+  <data name="App.WindowTitleSuffixFormat" xml:space="preserve"><value>Window {0}</value></data>
+  <data name="Dashboard.ProcessActive" xml:space="preserve"><value>Process active (PID {0})</value></data>
+  <data name="Dashboard.ProcessNotFound" xml:space="preserve"><value>Process not found</value></data>
+  <data name="Dashboard.ProcessUnableToCheck" xml:space="preserve"><value>Unable to check</value></data>
+  <data name="Dialog.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Dialog.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Dialog.Error.EmptyName" xml:space="preserve"><value>Task name cannot be empty.</value></data>
+  <data name="Dialog.Error.InvalidIdleDuration" xml:space="preserve"><value>"{0}" is not a valid idle duration. Use a value like 10m, 1h, or an ISO-8601 duration such as PT10M.</value></data>
+  <data name="Dialog.Error.InvalidRandomDelay" xml:space="preserve"><value>"{0}" is not a valid random delay value. Use an ISO-8601 duration such as PT30M or PT1H.</value></data>
+  <data name="Dialog.Error.InvalidRestartInterval" xml:space="preserve"><value>"{0}" is not a valid restart interval. Use a value like 1m, 30s, or an ISO-8601 duration such as PT1M.</value></data>
+  <data name="Dialog.Error.InvalidStopAfter" xml:space="preserve"><value>"{0}" is not a valid duration for "Stop task if runs longer than". Use an ISO-8601 duration such as PT90M or P1D.</value></data>
+  <data name="Dialog.Error.RenameDuplicated" xml:space="preserve"><value>Rename failed: both "{0}" and "{1}" now exist. Please delete one manually in Task Scheduler.</value></data>
+  <data name="Dialog.Error.RenameFailed" xml:space="preserve"><value>Could not rename "{0}" to "{1}": the old task could not be deleted ({2}).</value></data>
+  <data name="Dialog.Error.SaveTaskFailedPrefix" xml:space="preserve"><value>Failed to save task: </value></data>
+  <data name="Dialog.GetStarted" xml:space="preserve"><value>Get Started</value></data>
+  <data name="Dialog.Next" xml:space="preserve"><value>Next</value></data>
+  <data name="Dialog.UnsupportedElements" xml:space="preserve"><value>This task contains elements FluentTaskScheduler can't edit safely ({0}). Editing and saving it here would remove or corrupt those elements. Use Windows Task Scheduler to modify this task instead.</value></data>
+  <data name="FolderMenu.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="FolderMenu.NewSubfolder" xml:space="preserve"><value>New Subfolder</value></data>
+  <data name="FolderMenu.Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="Main.Batch.ClearSelectionTooltip" xml:space="preserve"><value>Clear Selection</value></data>
+  <data name="Main.Batch.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Main.Batch.DeleteTooltip" xml:space="preserve"><value>Delete Selected</value></data>
+  <data name="Main.Batch.Disable" xml:space="preserve"><value>Disable</value></data>
+  <data name="Main.Batch.DisableTooltip" xml:space="preserve"><value>Disable Selected</value></data>
+  <data name="Main.Batch.Enable" xml:space="preserve"><value>Enable</value></data>
+  <data name="Main.Batch.EnableTooltip" xml:space="preserve"><value>Enable Selected</value></data>
+  <data name="Main.Batch.Run" xml:space="preserve"><value>Run</value></data>
+  <data name="Main.Batch.RunTooltip" xml:space="preserve"><value>Run Selected</value></data>
+  <data name="Main.Batch.SelectedCountFormat" xml:space="preserve"><value>{0} selected</value></data>
+  <data name="Main.Batch.Stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="Main.Batch.StopTooltip" xml:space="preserve"><value>Stop Selected</value></data>
+  <data name="Main.Badge.Chained" xml:space="preserve"><value>Chained</value></data>
+  <data name="Main.Badge.FilterByCategory" xml:space="preserve"><value>Filter by this category</value></data>
+  <data name="Main.Badge.FromHistory" xml:space="preserve"><value>From History</value></data>
+  <data name="Main.Badge.Hidden" xml:space="preserve"><value>Hidden</value></data>
+  <data name="Main.Badge.ReadOnly" xml:space="preserve"><value>Read Only</value></data>
+  <data name="Onboarding.Step1.Body" xml:space="preserve"><value>Manage Windows Task Scheduler with a modern, fluent interface — no XML, no fuss.</value></data>
+  <data name="Onboarding.Step1.Title" xml:space="preserve"><value>Welcome to FluentTaskScheduler</value></data>
+  <data name="Onboarding.Step2.Body" xml:space="preserve"><value>Hit + New Task to schedule any program, script, or command to run automatically — daily, on login, on an event, and more.</value></data>
+  <data name="Onboarding.Step2.Title" xml:space="preserve"><value>Create your first task</value></data>
+  <data name="Onboarding.Step3.Body" xml:space="preserve"><value>Group related tasks into folders using the sidebar, just like Windows Explorer. Your last folder is remembered across restarts.</value></data>
+  <data name="Onboarding.Step3.Title" xml:space="preserve"><value>Organise with folders</value></data>
+  <data name="Onboarding.Step4.Body" xml:space="preserve"><value>Click any task to see its run history, success and failure counts, and live running status — all in one place.</value></data>
+  <data name="Onboarding.Step4.Title" xml:space="preserve"><value>Track history &amp; status</value></data>
+  <data name="Onboarding.Step5.Body" xml:space="preserve"><value>FluentTaskScheduler checks for updates automatically every time it starts. You can also trigger a manual check at any time from Settings → About → Check for Updates.</value></data>
+  <data name="Onboarding.Step5.Title" xml:space="preserve"><value>Always up to date</value></data>
+  <data name="Onboarding.Step6.Body" xml:space="preserve"><value>Use Task Discovery to scan the Windows Event Log and automatically import tasks created by other applications — no manual recreation needed.</value></data>
+  <data name="Onboarding.Step6.Title" xml:space="preserve"><value>Discover existing tasks</value></data>
+  <data name="Onboarding.Step7.Body" xml:space="preserve"><value>Head to Settings to enable Mica backdrop, minimise to tray, configure logging, run on startup, and more.</value></data>
+  <data name="Onboarding.Step7.Title" xml:space="preserve"><value>Tune it to your liking</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Content" xml:space="preserve"><value>Delete '{0}'?</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Title" xml:space="preserve"><value>Delete Script</value></data>
+  <data name="Settings.UpdateApplyFailed.Content" xml:space="preserve"><value>Failed to apply the update. Check the log for details, or try again later.</value></data>
+  <data name="Snooze.IncludeMicrosoftTasks" xml:space="preserve"><value>Also suspend Microsoft's own scheduled tasks (Defender, Windows Update, maintenance...)</value></data>
+  <data name="Snooze.IncludeMicrosoftTasksWarning" xml:space="preserve"><value>Not recommended: disabling these can break Windows security scans, updates, and maintenance until the snooze ends.</value></data>
+  <data name="Tray.CloseWindowFormat" xml:space="preserve"><value>✕  Close {0}</value></data>
+  <data name="Tray.ExitAll" xml:space="preserve"><value>Exit All</value></data>
+  <data name="Tray.NewWindow" xml:space="preserve"><value>New Window</value></data>
+  <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(No hidden windows)</value></data>
+  <data name="Trigger.Run" xml:space="preserve"><value>Run:</value></data>
 </root>
 

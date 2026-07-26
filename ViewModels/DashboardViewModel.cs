@@ -126,6 +126,12 @@ namespace FluentTaskScheduler.ViewModels
         private int _runningTasks;
         private DispatcherQueueTimer? _autoRefreshTimer;
 
+        // Captured once here, on the UI thread that always constructs this view model (from
+        // DashboardPage's constructor) — calling DispatcherQueue.GetForCurrentThread() again inside
+        // LoadDashboardData is null when that method is entered from a non-UI thread (e.g. a
+        // background LanguageChanged notification), which crashes the finally block (see 3.6).
+        private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+
         // Analytics
         private int _runs24h;
         private int _runs7d;
@@ -162,6 +168,13 @@ namespace FluentTaskScheduler.ViewModels
         {
             RefreshFilterLabels();
             _ = LoadDashboardData();
+        }
+
+        /// <summary>Unsubscribes from the static LocalizationService event — see 3.3.</summary>
+        public void Cleanup()
+        {
+            LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
+            StopAutoRefresh();
         }
 
         private void RefreshFilterLabels()
@@ -361,7 +374,6 @@ namespace FluentTaskScheduler.ViewModels
 
         public async Task LoadDashboardData()
         {
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
             IsLoading = true;
             try
             {
@@ -420,7 +432,7 @@ namespace FluentTaskScheduler.ViewModels
                     var analytics = ComputeAnalytics(records, allTasks);
 
                     // Update UI
-                    dispatcherQueue.TryEnqueue(() =>
+                    _dispatcherQueue.TryEnqueue(() =>
                     {
                         TotalTasks = total;
                         EnabledTasks = enabled;
@@ -498,7 +510,7 @@ namespace FluentTaskScheduler.ViewModels
             }
             finally
             {
-                dispatcherQueue.TryEnqueue(() => IsLoading = false);
+                _dispatcherQueue.TryEnqueue(() => IsLoading = false);
             }
         }
 

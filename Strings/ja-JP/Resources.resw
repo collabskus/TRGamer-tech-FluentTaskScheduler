@@ -737,4 +737,67 @@
   <data name="Library.Search.Placeholder" xml:space="preserve"><value>検索...</value></data>
   <data name="Library.Search.NoTemplates" xml:space="preserve"><value>検索条件に一致するテンプレートがありません。</value></data>
   <data name="Library.Search.NoScripts" xml:space="preserve"><value>検索条件に一致するスクリプトがありません。</value></data>
+
+  <!-- Added while closing localization gaps found during the S3 audit pass (3.2) -->
+  <data name="App.WindowTitleSuffixFormat" xml:space="preserve"><value>ウィンドウ {0}</value></data>
+  <data name="Dashboard.ProcessActive" xml:space="preserve"><value>プロセス実行中 (PID {0})</value></data>
+  <data name="Dashboard.ProcessNotFound" xml:space="preserve"><value>プロセスが見つかりません</value></data>
+  <data name="Dashboard.ProcessUnableToCheck" xml:space="preserve"><value>確認できません</value></data>
+  <data name="Dialog.Cancel" xml:space="preserve"><value>キャンセル</value></data>
+  <data name="Dialog.Delete" xml:space="preserve"><value>削除</value></data>
+  <data name="Dialog.Error.EmptyName" xml:space="preserve"><value>タスク名を空にすることはできません。</value></data>
+  <data name="Dialog.Error.InvalidIdleDuration" xml:space="preserve"><value>「{0}」は有効なアイドル時間ではありません。10m、1h のような値、または PT10M のような ISO 8601 形式の期間を使用してください。</value></data>
+  <data name="Dialog.Error.InvalidRandomDelay" xml:space="preserve"><value>「{0}」は有効なランダム遅延の値ではありません。PT30M や PT1H のような ISO 8601 形式の期間を使用してください。</value></data>
+  <data name="Dialog.Error.InvalidRestartInterval" xml:space="preserve"><value>「{0}」は有効な再試行間隔ではありません。1m、30s のような値、または PT1M のような ISO 8601 形式の期間を使用してください。</value></data>
+  <data name="Dialog.Error.InvalidStopAfter" xml:space="preserve"><value>「{0}」は「実行時間が次を超えたらタスクを停止」の値として無効です。PT90M や P1D のような ISO 8601 形式の期間を使用してください。</value></data>
+  <data name="Dialog.Error.RenameDuplicated" xml:space="preserve"><value>名前の変更に失敗しました。「{0}」と「{1}」の両方が存在しています。タスク スケジューラで手動でどちらかを削除してください。</value></data>
+  <data name="Dialog.Error.RenameFailed" xml:space="preserve"><value>「{0}」を「{1}」に変更できませんでした。古いタスクを削除できませんでした ({2})。</value></data>
+  <data name="Dialog.Error.SaveTaskFailedPrefix" xml:space="preserve"><value>タスクの保存に失敗しました: </value></data>
+  <data name="Dialog.GetStarted" xml:space="preserve"><value>開始する</value></data>
+  <data name="Dialog.Next" xml:space="preserve"><value>次へ</value></data>
+  <data name="Dialog.UnsupportedElements" xml:space="preserve"><value>このタスクには FluentTaskScheduler が安全に編集できない要素が含まれています ({0})。ここで編集して保存すると、それらの要素が削除または破損する可能性があります。このタスクを変更するには Windows のタスク スケジューラを使用してください。</value></data>
+  <data name="FolderMenu.Delete" xml:space="preserve"><value>削除</value></data>
+  <data name="FolderMenu.NewSubfolder" xml:space="preserve"><value>新しいサブフォルダー</value></data>
+  <data name="FolderMenu.Rename" xml:space="preserve"><value>名前の変更</value></data>
+  <data name="Main.Batch.ClearSelectionTooltip" xml:space="preserve"><value>選択を解除</value></data>
+  <data name="Main.Batch.Delete" xml:space="preserve"><value>削除</value></data>
+  <data name="Main.Batch.DeleteTooltip" xml:space="preserve"><value>選択項目を削除</value></data>
+  <data name="Main.Batch.Disable" xml:space="preserve"><value>無効化</value></data>
+  <data name="Main.Batch.DisableTooltip" xml:space="preserve"><value>選択項目を無効化</value></data>
+  <data name="Main.Batch.Enable" xml:space="preserve"><value>有効化</value></data>
+  <data name="Main.Batch.EnableTooltip" xml:space="preserve"><value>選択項目を有効化</value></data>
+  <data name="Main.Batch.Run" xml:space="preserve"><value>実行</value></data>
+  <data name="Main.Batch.RunTooltip" xml:space="preserve"><value>選択項目を実行</value></data>
+  <data name="Main.Batch.SelectedCountFormat" xml:space="preserve"><value>{0} 件選択</value></data>
+  <data name="Main.Batch.Stop" xml:space="preserve"><value>停止</value></data>
+  <data name="Main.Batch.StopTooltip" xml:space="preserve"><value>選択項目を停止</value></data>
+  <data name="Main.Badge.Chained" xml:space="preserve"><value>連鎖</value></data>
+  <data name="Main.Badge.FilterByCategory" xml:space="preserve"><value>このカテゴリで絞り込む</value></data>
+  <data name="Main.Badge.FromHistory" xml:space="preserve"><value>履歴から</value></data>
+  <data name="Main.Badge.Hidden" xml:space="preserve"><value>非表示</value></data>
+  <data name="Main.Badge.ReadOnly" xml:space="preserve"><value>読み取り専用</value></data>
+  <data name="Onboarding.Step1.Body" xml:space="preserve"><value>モダンで洗練された UI で Windows タスク スケジューラを管理できます。XML も面倒な操作も不要です。</value></data>
+  <data name="Onboarding.Step1.Title" xml:space="preserve"><value>FluentTaskScheduler へようこそ</value></data>
+  <data name="Onboarding.Step2.Body" xml:space="preserve"><value>「+ 新しいタスク」をクリックすると、プログラム、スクリプト、コマンドを自動的に実行するようにスケジュールできます。毎日、ログオン時、イベント発生時など、さまざまなタイミングを選べます。</value></data>
+  <data name="Onboarding.Step2.Title" xml:space="preserve"><value>最初のタスクを作成しましょう</value></data>
+  <data name="Onboarding.Step3.Body" xml:space="preserve"><value>サイドバーを使って、Windows エクスプローラーのようにタスクをフォルダーにまとめて整理できます。最後に開いたフォルダーは再起動後も記憶されます。</value></data>
+  <data name="Onboarding.Step3.Title" xml:space="preserve"><value>フォルダーで整理する</value></data>
+  <data name="Onboarding.Step4.Body" xml:space="preserve"><value>タスクをクリックすると、実行履歴、成功・失敗の回数、リアルタイムの実行状況を一か所で確認できます。</value></data>
+  <data name="Onboarding.Step4.Title" xml:space="preserve"><value>履歴とステータスを確認</value></data>
+  <data name="Onboarding.Step5.Body" xml:space="preserve"><value>FluentTaskScheduler は起動のたびに自動で更新を確認します。設定 → バージョン情報 → 更新の確認 からいつでも手動で確認することもできます。</value></data>
+  <data name="Onboarding.Step5.Title" xml:space="preserve"><value>常に最新の状態に</value></data>
+  <data name="Onboarding.Step6.Body" xml:space="preserve"><value>タスクの検出機能を使うと、Windows イベント ログをスキャンして、他のアプリケーションが作成したタスクを自動的に取り込めます。手動での再作成は不要です。</value></data>
+  <data name="Onboarding.Step6.Title" xml:space="preserve"><value>既存のタスクを検出</value></data>
+  <data name="Onboarding.Step7.Body" xml:space="preserve"><value>設定画面では、Mica の背景効果の有効化、トレイへの最小化、ログの設定、スタートアップ時の起動などを構成できます。</value></data>
+  <data name="Onboarding.Step7.Title" xml:space="preserve"><value>お好みに合わせて調整</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Content" xml:space="preserve"><value>「{0}」を削除しますか?</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Title" xml:space="preserve"><value>スクリプトの削除</value></data>
+  <data name="Settings.UpdateApplyFailed.Content" xml:space="preserve"><value>更新の適用に失敗しました。詳細はログを確認するか、後でもう一度お試しください。</value></data>
+  <data name="Snooze.IncludeMicrosoftTasks" xml:space="preserve"><value>Microsoft 独自の予約タスクも一時停止する (Defender、Windows Update、メンテナンスなど)</value></data>
+  <data name="Snooze.IncludeMicrosoftTasksWarning" xml:space="preserve"><value>推奨されません。これらを無効にすると、スヌーズが終了するまで Windows のセキュリティ スキャン、更新、メンテナンスが妨げられる可能性があります。</value></data>
+  <data name="Tray.CloseWindowFormat" xml:space="preserve"><value>✕  {0} を閉じる</value></data>
+  <data name="Tray.ExitAll" xml:space="preserve"><value>すべて終了</value></data>
+  <data name="Tray.NewWindow" xml:space="preserve"><value>新しいウィンドウ</value></data>
+  <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(非表示のウィンドウはありません)</value></data>
+  <data name="Trigger.Run" xml:space="preserve"><value>実行:</value></data>
 </root>

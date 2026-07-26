@@ -740,6 +740,69 @@
   <data name="Library.Search.Placeholder" xml:space="preserve"><value>搜索...</value></data>
   <data name="Library.Search.NoTemplates" xml:space="preserve"><value>没有与搜索匹配的模板。</value></data>
   <data name="Library.Search.NoScripts" xml:space="preserve"><value>没有与搜索匹配的脚本。</value></data>
+
+  <!-- Added while closing localization gaps found during the S3 audit pass (3.2) -->
+  <data name="App.WindowTitleSuffixFormat" xml:space="preserve"><value>窗口 {0}</value></data>
+  <data name="Dashboard.ProcessActive" xml:space="preserve"><value>进程运行中 (PID {0})</value></data>
+  <data name="Dashboard.ProcessNotFound" xml:space="preserve"><value>未找到进程</value></data>
+  <data name="Dashboard.ProcessUnableToCheck" xml:space="preserve"><value>无法检查</value></data>
+  <data name="Dialog.Cancel" xml:space="preserve"><value>取消</value></data>
+  <data name="Dialog.Delete" xml:space="preserve"><value>删除</value></data>
+  <data name="Dialog.Error.EmptyName" xml:space="preserve"><value>任务名称不能为空。</value></data>
+  <data name="Dialog.Error.InvalidIdleDuration" xml:space="preserve"><value>"{0}" 不是有效的空闲时长。请使用类似 10m、1h 的值,或 PT10M 这样的 ISO 8601 时长格式。</value></data>
+  <data name="Dialog.Error.InvalidRandomDelay" xml:space="preserve"><value>"{0}" 不是有效的随机延迟值。请使用 PT30M 或 PT1H 这样的 ISO 8601 时长格式。</value></data>
+  <data name="Dialog.Error.InvalidRestartInterval" xml:space="preserve"><value>"{0}" 不是有效的重试间隔。请使用类似 1m、30s 的值,或 PT1M 这样的 ISO 8601 时长格式。</value></data>
+  <data name="Dialog.Error.InvalidStopAfter" xml:space="preserve"><value>"{0}" 不是"运行超过以下时长后停止任务"的有效值。请使用 PT90M 或 P1D 这样的 ISO 8601 时长格式。</value></data>
+  <data name="Dialog.Error.RenameDuplicated" xml:space="preserve"><value>重命名失败:"{0}" 和 "{1}" 现在都已存在。请在任务计划程序中手动删除其中一个。</value></data>
+  <data name="Dialog.Error.RenameFailed" xml:space="preserve"><value>无法将 "{0}" 重命名为 "{1}":无法删除旧任务 ({2})。</value></data>
+  <data name="Dialog.Error.SaveTaskFailedPrefix" xml:space="preserve"><value>保存任务失败: </value></data>
+  <data name="Dialog.GetStarted" xml:space="preserve"><value>开始使用</value></data>
+  <data name="Dialog.Next" xml:space="preserve"><value>下一步</value></data>
+  <data name="Dialog.UnsupportedElements" xml:space="preserve"><value>此任务包含 FluentTaskScheduler 无法安全编辑的元素 ({0})。在此处编辑并保存会移除或损坏这些元素。请使用 Windows 任务计划程序修改此任务。</value></data>
+  <data name="FolderMenu.Delete" xml:space="preserve"><value>删除</value></data>
+  <data name="FolderMenu.NewSubfolder" xml:space="preserve"><value>新建子文件夹</value></data>
+  <data name="FolderMenu.Rename" xml:space="preserve"><value>重命名</value></data>
+  <data name="Main.Batch.ClearSelectionTooltip" xml:space="preserve"><value>清除选择</value></data>
+  <data name="Main.Batch.Delete" xml:space="preserve"><value>删除</value></data>
+  <data name="Main.Batch.DeleteTooltip" xml:space="preserve"><value>删除所选项</value></data>
+  <data name="Main.Batch.Disable" xml:space="preserve"><value>禁用</value></data>
+  <data name="Main.Batch.DisableTooltip" xml:space="preserve"><value>禁用所选项</value></data>
+  <data name="Main.Batch.Enable" xml:space="preserve"><value>启用</value></data>
+  <data name="Main.Batch.EnableTooltip" xml:space="preserve"><value>启用所选项</value></data>
+  <data name="Main.Batch.Run" xml:space="preserve"><value>运行</value></data>
+  <data name="Main.Batch.RunTooltip" xml:space="preserve"><value>运行所选项</value></data>
+  <data name="Main.Batch.SelectedCountFormat" xml:space="preserve"><value>已选择 {0} 项</value></data>
+  <data name="Main.Batch.Stop" xml:space="preserve"><value>停止</value></data>
+  <data name="Main.Batch.StopTooltip" xml:space="preserve"><value>停止所选项</value></data>
+  <data name="Main.Badge.Chained" xml:space="preserve"><value>已链接</value></data>
+  <data name="Main.Badge.FilterByCategory" xml:space="preserve"><value>按此类别筛选</value></data>
+  <data name="Main.Badge.FromHistory" xml:space="preserve"><value>来自历史记录</value></data>
+  <data name="Main.Badge.Hidden" xml:space="preserve"><value>已隐藏</value></data>
+  <data name="Main.Badge.ReadOnly" xml:space="preserve"><value>只读</value></data>
+  <data name="Onboarding.Step1.Body" xml:space="preserve"><value>使用现代化的 Fluent 界面管理 Windows 任务计划程序 —— 无需 XML,不再繁琐。</value></data>
+  <data name="Onboarding.Step1.Title" xml:space="preserve"><value>欢迎使用 FluentTaskScheduler</value></data>
+  <data name="Onboarding.Step2.Body" xml:space="preserve"><value>点击"+ 新建任务"即可安排任意程序、脚本或命令自动运行 —— 每天、登录时、事件触发时等等。</value></data>
+  <data name="Onboarding.Step2.Title" xml:space="preserve"><value>创建您的第一个任务</value></data>
+  <data name="Onboarding.Step3.Body" xml:space="preserve"><value>使用侧边栏将相关任务归入文件夹,就像 Windows 资源管理器一样。系统会记住您上次使用的文件夹,重启后依然有效。</value></data>
+  <data name="Onboarding.Step3.Title" xml:space="preserve"><value>使用文件夹整理任务</value></data>
+  <data name="Onboarding.Step4.Body" xml:space="preserve"><value>点击任意任务即可在同一处查看其运行历史、成功与失败次数以及实时运行状态。</value></data>
+  <data name="Onboarding.Step4.Title" xml:space="preserve"><value>跟踪历史记录与状态</value></data>
+  <data name="Onboarding.Step5.Body" xml:space="preserve"><value>FluentTaskScheduler 每次启动时都会自动检查更新。您也可以随时在"设置 → 关于 → 检查更新"中手动检查。</value></data>
+  <data name="Onboarding.Step5.Title" xml:space="preserve"><value>始终保持最新</value></data>
+  <data name="Onboarding.Step6.Body" xml:space="preserve"><value>使用任务发现功能扫描 Windows 事件日志,自动导入由其他应用程序创建的任务 —— 无需手动重建。</value></data>
+  <data name="Onboarding.Step6.Title" xml:space="preserve"><value>发现现有任务</value></data>
+  <data name="Onboarding.Step7.Body" xml:space="preserve"><value>前往设置以启用 Mica 背景效果、最小化到系统托盘、配置日志记录、设置开机启动等。</value></data>
+  <data name="Onboarding.Step7.Title" xml:space="preserve"><value>按您的喜好进行调整</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Content" xml:space="preserve"><value>删除"{0}"?</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Title" xml:space="preserve"><value>删除脚本</value></data>
+  <data name="Settings.UpdateApplyFailed.Content" xml:space="preserve"><value>应用更新失败。请查看日志了解详细信息,或稍后重试。</value></data>
+  <data name="Snooze.IncludeMicrosoftTasks" xml:space="preserve"><value>同时暂停 Microsoft 自身的计划任务(Defender、Windows 更新、维护等)</value></data>
+  <data name="Snooze.IncludeMicrosoftTasksWarning" xml:space="preserve"><value>不建议这样做:禁用这些任务可能会在暂停结束前影响 Windows 安全扫描、更新和维护。</value></data>
+  <data name="Tray.CloseWindowFormat" xml:space="preserve"><value>✕  关闭 {0}</value></data>
+  <data name="Tray.ExitAll" xml:space="preserve"><value>全部退出</value></data>
+  <data name="Tray.NewWindow" xml:space="preserve"><value>新建窗口</value></data>
+  <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(没有隐藏的窗口)</value></data>
+  <data name="Trigger.Run" xml:space="preserve"><value>运行:</value></data>
 </root>
 
 

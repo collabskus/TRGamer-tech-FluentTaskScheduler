@@ -373,6 +373,7 @@ namespace FluentTaskScheduler.Services
                 var task = ts.GetTask(path);
                 if (task != null) task.Folder.DeleteTask(task.Name);
             }
+            InvalidateDiscoveredCache();
         }
 
         public void RegisterTask(string folderPath, ScheduledTaskModel model)
@@ -416,7 +417,7 @@ namespace FluentTaskScheduler.Services
                     if (IsAccessDenied(ex))
                     {
                         LogService.Warn($"Access denied registering task '{model.Name}' with elevated privileges; falling back to current user context.");
-                        RegisterSafeTask(ts, targetFolder, model, td);
+                        RegisterSafeTask(targetFolder, model, td);
                     }
                     else
                     {
@@ -425,62 +426,37 @@ namespace FluentTaskScheduler.Services
                     }
                 }
             }
+            InvalidateDiscoveredCache();
         }
 
-        private void RegisterSafeTask(TaskService ts, TaskFolder targetFolder, ScheduledTaskModel model, TaskDefinition originalTd)
+        private void RegisterSafeTask(TaskFolder targetFolder, ScheduledTaskModel model, TaskDefinition originalTd)
         {
-            // Create a fresh definition to avoid polluted privileges
-            TaskDefinition safeTd = ts.NewTask();
+            // Reuse the already-fully-configured definition instead of rebuilding one from scratch
+            // and manually re-copying a hand-picked subset of its settings — that subset previously
+            // dropped Hidden, WakeToRun, RunOnlyIfIdle, RestartCount/RestartInterval, and
+            // NetworkSettings on every de-elevated fallback registration (see 3.8). Only the
+            // principal/logon context actually needs to change for the de-elevated retry.
+            originalTd.Principal.RunLevel = TaskRunLevel.LUA;
+            originalTd.Principal.LogonType = TaskLogonType.InteractiveToken;
+            originalTd.Principal.UserId = null;
+            originalTd.Principal.GroupId = null;
 
-            // Copy properties safely
-            safeTd.RegistrationInfo.Description = originalTd.RegistrationInfo.Description;
-            safeTd.RegistrationInfo.Author = originalTd.RegistrationInfo.Author;
-            safeTd.Settings.Enabled = originalTd.Settings.Enabled;
-            safeTd.Settings.Compatibility = TaskCompatibility.V2;
-            
-            // Map settings
-            safeTd.Settings.MultipleInstances = originalTd.Settings.MultipleInstances;
-            safeTd.Settings.DisallowStartIfOnBatteries = originalTd.Settings.DisallowStartIfOnBatteries;
-            safeTd.Settings.StopIfGoingOnBatteries = originalTd.Settings.StopIfGoingOnBatteries;
-            safeTd.Settings.AllowHardTerminate = originalTd.Settings.AllowHardTerminate;
-            safeTd.Settings.StartWhenAvailable = originalTd.Settings.StartWhenAvailable;
-            safeTd.Settings.RunOnlyIfNetworkAvailable = originalTd.Settings.RunOnlyIfNetworkAvailable;
-            safeTd.Settings.IdleSettings.IdleDuration = originalTd.Settings.IdleSettings.IdleDuration;
-            safeTd.Settings.IdleSettings.StopOnIdleEnd = originalTd.Settings.IdleSettings.StopOnIdleEnd;
-            safeTd.Settings.ExecutionTimeLimit = originalTd.Settings.ExecutionTimeLimit;
-            safeTd.Settings.Priority = originalTd.Settings.Priority;
-            safeTd.Settings.DeleteExpiredTaskAfter = originalTd.Settings.DeleteExpiredTaskAfter;
-
-            // Copy Triggers (strip specific user context that requires admin)
-            foreach (var oldTrig in originalTd.Triggers)
+            // Strip specific user contexts from triggers that require admin to target another user.
+            foreach (var trig in originalTd.Triggers)
             {
-                var clone = (Trigger)oldTrig.Clone();
-                if (clone is SessionStateChangeTrigger sst) sst.UserId = null;
-                if (clone is LogonTrigger lt) lt.UserId = null;
-                safeTd.Triggers.Add(clone);
+                if (trig is SessionStateChangeTrigger sst) sst.UserId = null;
+                if (trig is LogonTrigger lt) lt.UserId = null;
             }
-
-            // Copy Actions
-            foreach (var oldAct in originalTd.Actions)
-            {
-                safeTd.Actions.Add((Microsoft.Win32.TaskScheduler.Action)oldAct.Clone());
-            }
-
-            // Force safe principal
-            safeTd.Principal.RunLevel = TaskRunLevel.LUA;
-            safeTd.Principal.LogonType = TaskLogonType.InteractiveToken;
-            safeTd.Principal.UserId = null;
-            safeTd.Principal.GroupId = null;
 
             targetFolder.RegisterTaskDefinition(
                 model.Name,
-                safeTd,
+                originalTd,
                 TaskCreation.CreateOrUpdate,
-                null, 
-                null, 
+                null,
+                null,
                 TaskLogonType.InteractiveToken
             );
-            
+
             LogService.Info($"Registered task '{model.Name}' via fallback (InteractiveToken).");
         }
 
@@ -815,6 +791,10 @@ namespace FluentTaskScheduler.Services
 
         private List<ScheduledTaskModel>? _discoveredCache;
 
+        /// <summary>Drops the event-log task-discovery cache so the next GetFolderStructure() call
+        /// re-scans instead of reusing a snapshot that predates a task being added/removed.</summary>
+        internal void InvalidateDiscoveredCache() => _discoveredCache = null;
+
         public List<ScheduledTaskModel> DiscoverTasksFromEventLog(bool forceRefresh = false)
         {
             if (_discoveredCache != null && !forceRefresh) return _discoveredCache;
@@ -859,21 +839,21 @@ namespace FluentTaskScheduler.Services
             }
 
             var discoveredTasks = new List<ScheduledTaskModel>();
+            // One TaskService for the whole pass — opening a fresh COM connection per discovered
+            // path here was the single biggest cost of a folder-tree refresh (see 3.5).
+            using var lookupTs = new TaskService();
             foreach (var path in discoveredRaw)
             {
                 bool added = false;
                 try
                 {
-                    using (var ts = new TaskService())
+                    var task = lookupTs.GetTask(path);
+                    if (task != null)
                     {
-                        var task = ts.GetTask(path);
-                        if (task != null)
-                        {
-                            var model = MapTaskToModel(task);
-                            model.IsFromEventLog = true;
-                            discoveredTasks.Add(model);
-                            added = true;
-                        }
+                        var model = MapTaskToModel(task);
+                        model.IsFromEventLog = true;
+                        discoveredTasks.Add(model);
+                        added = true;
                     }
                 }
                 catch (Exception ex) when (IsAccessDenied(ex))
@@ -1440,11 +1420,23 @@ namespace FluentTaskScheduler.Services
             _ => WhichWeek.FirstWeek
         };
 
-        private bool IsAccessDenied(Exception ex)
+        /// <summary>Win32 E_ACCESSDENIED (0x80070005), which is what Task Scheduler's COM layer
+        /// raises for a protected/system task regardless of the OS display language.</summary>
+        private const int E_ACCESSDENIED = unchecked((int)0x80070005);
+
+        /// <summary>
+        /// Checks the HRESULT (walking inner exceptions too) instead of matching the exception
+        /// message text — the old code only recognized English and German "access denied" strings,
+        /// so the check silently failed on any other OS display language (see 3.9).
+        /// </summary>
+        internal static bool IsAccessDenied(Exception? ex)
         {
-             return ex.HResult == -2147024891 || 
-                    ex.Message.Contains("Access is denied", StringComparison.OrdinalIgnoreCase) || 
-                    ex.Message.Contains("Zugriff verweigert", StringComparison.OrdinalIgnoreCase);
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                if (e.HResult == E_ACCESSDENIED) return true;
+                if (e is System.Runtime.InteropServices.COMException com && com.ErrorCode == E_ACCESSDENIED) return true;
+            }
+            return false;
         }
 
         public TaskFolderModel GetFolderStructure()
@@ -1454,9 +1446,11 @@ namespace FluentTaskScheduler.Services
                 var root = new TaskFolderModel { Name = "Task Scheduler Library", Path = "\\" };
                 EnumFolders(ts.RootFolder, root);
 
-                // Synthesize folders from discovered tasks
-                // Pass true to force refresh if we're reloading folders
-                var discovered = DiscoverTasksFromEventLog(true); 
+                // Synthesize folders from discovered tasks. This used to force a full event-log
+                // re-scan (up to 2000 events) plus a fresh TaskService per discovered path on every
+                // single folder-tree refresh; it now reuses the cache and is invalidated explicitly
+                // by RegisterTask/DeleteTask instead (see 3.5).
+                var discovered = DiscoverTasksFromEventLog();
                 foreach (var task in discovered)
                 {
                     SynthesizeFoldersInTree(root, task.Path);
@@ -1572,7 +1566,17 @@ namespace FluentTaskScheduler.Services
                 catch (System.IO.FileNotFoundException) { }
 
                 var targetFolder = GetOrCreateFolder(ts, newPath);
-                CopyFolderContents(ts, sourceFolder, targetFolder);
+                try
+                {
+                    CopyFolderContents(ts, sourceFolder, targetFolder);
+                }
+                catch
+                {
+                    // Copying only some tasks left a half-populated folder at the destination —
+                    // clean it up so a failed move doesn't leave orphaned duplicates behind (3.10).
+                    TryDeleteFolderQuietly(ts, newPath);
+                    throw;
+                }
             }
 
             // Perform deletion in a fresh context to ensure no handles are held
@@ -1643,9 +1647,36 @@ namespace FluentTaskScheduler.Services
                 try { if (ts.GetFolder(newPath) != null) throw new Exception($"A folder named '{newName}' already exists."); } catch (System.IO.FileNotFoundException) { }
 
                 var newFolder = GetOrCreateFolder(ts, newPath);
-                CopyFolderContents(ts, oldFolder, newFolder);
+                try
+                {
+                    CopyFolderContents(ts, oldFolder, newFolder);
+                }
+                catch
+                {
+                    // Same partial-copy cleanup as MoveFolder (3.10).
+                    TryDeleteFolderQuietly(ts, newPath);
+                    throw;
+                }
                 DeleteFolderRecursive(oldFolder);
                 oldFolder.Parent?.DeleteFolder(oldFolder.Name);
+            }
+        }
+
+        /// <summary>Best-effort cleanup of a half-populated target folder after a failed copy (3.10).</summary>
+        private void TryDeleteFolderQuietly(TaskService ts, string path)
+        {
+            try
+            {
+                var folder = ts.GetFolder(path);
+                if (folder != null && folder.Path != "\\")
+                {
+                    DeleteFolderRecursive(folder);
+                    folder.Parent?.DeleteFolder(folder.Name);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Warn($"Could not clean up the partially-copied target folder '{path}' after a failed move/rename: {ex.Message}");
             }
         }
 

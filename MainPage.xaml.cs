@@ -72,6 +72,7 @@ namespace FluentTaskScheduler
             LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
             SnoozeService.SnoozeChanged -= SnoozeService_SnoozeChanged;
             TrayIconService.CustomSnoozeRequested -= TrayIconService_CustomSnoozeRequested;
+            ViewModel.Cleanup();
             if (ReferenceEquals(Current, this))
             {
                 Current = null;
@@ -265,6 +266,10 @@ namespace FluentTaskScheduler
 
         private static string L(string key, string fallback) => LocalizationService.GetString(key, fallback);
 
+        /// <summary>Public counterpart of <see cref="L"/> for x:Bind function calls from the task
+        /// ListView's DataTemplate, which compiles into a separate generated class (see 3.2).</summary>
+        public static string Loc(string key, string fallback) => LocalizationService.GetString(key, fallback);
+
         private static bool TryParseIsoDuration(string value, out TimeSpan result) => DurationUtil.TryParseIsoDuration(value, out result);
 
         public void RefreshLocalizedUi() => ApplyLocalizedUi();
@@ -291,6 +296,20 @@ namespace FluentTaskScheduler
             ShortcutsButton.Content = L("Main.Toolbar.ShortcutsButton", "?");
             ToolTipService.SetToolTip(ShortcutsButton, L("Main.Toolbar.ShortcutsTooltip", "Keyboard Shortcuts (F1)"));
             UpdateSortButtonText();
+
+            // Batch action bar
+            BatchRunBtnText.Text = L("Main.Batch.Run", "Run");
+            ToolTipService.SetToolTip(BatchRunBtn, L("Main.Batch.RunTooltip", "Run Selected"));
+            BatchStopBtnText.Text = L("Main.Batch.Stop", "Stop");
+            ToolTipService.SetToolTip(BatchStopBtn, L("Main.Batch.StopTooltip", "Stop Selected"));
+            BatchEnableBtnText.Text = L("Main.Batch.Enable", "Enable");
+            ToolTipService.SetToolTip(BatchEnableBtn, L("Main.Batch.EnableTooltip", "Enable Selected"));
+            BatchDisableBtnText.Text = L("Main.Batch.Disable", "Disable");
+            ToolTipService.SetToolTip(BatchDisableBtn, L("Main.Batch.DisableTooltip", "Disable Selected"));
+            BatchDeleteBtnText.Text = L("Main.Batch.Delete", "Delete");
+            ToolTipService.SetToolTip(BatchDeleteBtn, L("Main.Batch.DeleteTooltip", "Delete Selected"));
+            ToolTipService.SetToolTip(BatchCancelBtn, L("Main.Batch.ClearSelectionTooltip", "Clear Selection"));
+            UpdateBatchCountText();
 
             CopyHistoryBtn.Content = L("Main.History.Copy", "📋 Copy");
             TaskHistoryDialog.Title = L("Main.HistoryDialog.Title", "Task History");
@@ -542,7 +561,7 @@ namespace FluentTaskScheduler
                     "Dashboard" => L("Main.Header.Dashboard", "Dashboard"),
                     "QuickActions" => L("Main.Header.QuickActions", "Quick Actions"),
                     "ScriptLibrary" => L("Main.Header.Library", "Library"),
-                    "ScriptEditor" => L("Main.Header.ScriptEditor", "Script Editor"),
+                    "ScriptEditor" => L("Main.Header.ScriptEditor.Text", "Script Editor"),
                     "settings" => L("Main.Header.Settings", "Settings"),
                     _ => L("Main.Header.ScheduledTasks", "Scheduled Tasks")
                 };
@@ -754,7 +773,7 @@ namespace FluentTaskScheduler
 
         private async System.Threading.Tasks.Task CheckStartupDialogsAsync()
         {
-            // Await onboarding first â€” on a fresh install the user must finish the
+            // Await onboarding first — on a fresh install the user must finish the
             // walkthrough before the "What's New" popup is shown on top.
             await CheckAndShowOnboardingAsync();
 
@@ -774,7 +793,7 @@ namespace FluentTaskScheduler
                     var dialog = new Dialogs.OnboardingDialog { XamlRoot = this.XamlRoot, RequestedTheme = Services.SettingsService.Theme };
                     await dialog.ShowAsync();
                 }
-                catch { /* XamlRoot not ready or dialog already open â€” skip silently */ }
+                catch { /* XamlRoot not ready or dialog already open — skip silently */ }
                 finally { tcs.TrySetResult(); }
             });
             await tcs.Task;
@@ -790,7 +809,7 @@ namespace FluentTaskScheduler
                 string lastSeen = Services.SettingsService.LastSeenVersion;
                 if (string.Equals(release.TagName, lastSeen, StringComparison.OrdinalIgnoreCase)) return;
 
-                // New version â€” marshal back to UI thread via TCS
+                // New version — marshal back to UI thread via TCS
                 var tcs = new System.Threading.Tasks.TaskCompletionSource();
                 DispatcherQueue.TryEnqueue(async () =>
                 {
@@ -805,12 +824,12 @@ namespace FluentTaskScheduler
                         // Only persist after the user has actually seen the dialog
                         Services.SettingsService.LastSeenVersion = release.TagName;
                     }
-                    catch { /* dialog already open or XamlRoot not ready â€” skip silently */ }
+                    catch { /* dialog already open or XamlRoot not ready — skip silently */ }
                     finally { tcs.TrySetResult(); }
                 });
                 await tcs.Task;
             }
-            catch { /* network unavailable or any other error â€” fail silently */ }
+            catch { /* network unavailable or any other error — fail silently */ }
         }
 
         /// <summary>Directly applies smooth scrolling to all ScrollViewers owned by MainPage,
@@ -874,6 +893,14 @@ namespace FluentTaskScheduler
             try
             {
                 var rootFolder = ViewModel.TaskService.GetFolderStructure();
+
+                // Unregister the previous pass's property-changed callbacks before discarding those
+                // nodes — RegisterPropertyChangedCallback tokens are otherwise never released, which
+                // leaks a callback per folder on every reload (3.11).
+                foreach (var kv in _treeNodeCallbackTokens)
+                    kv.Key.UnregisterPropertyChangedCallback(TreeViewNode.IsExpandedProperty, kv.Value);
+                _treeNodeCallbackTokens.Clear();
+
                 _treeNodeFolderMap.Clear();
                 FolderTreeView.RootNodes.Clear();
                 AddFolderToTree(rootFolder, null);
@@ -882,6 +909,7 @@ namespace FluentTaskScheduler
         }
 
         private Dictionary<TreeViewNode, TaskFolderModel> _treeNodeFolderMap = new();
+        private Dictionary<TreeViewNode, long> _treeNodeCallbackTokens = new();
 
         /// <summary>Expands and selects the tree node for the given folder path, if it still exists
         /// (used to restore the last-used folder — see 2.2).</summary>
@@ -909,11 +937,12 @@ namespace FluentTaskScheduler
             _treeNodeFolderMap[treeNode] = folder;
 
             // Track expansion state changes
-            treeNode.RegisterPropertyChangedCallback(TreeViewNode.IsExpandedProperty, (sender, dp) =>
+            long token = treeNode.RegisterPropertyChangedCallback(TreeViewNode.IsExpandedProperty, (sender, dp) =>
             {
                 if (sender is TreeViewNode node && _treeNodeFolderMap.TryGetValue(node, out var f))
                     _folderExpandedState[f.Path] = node.IsExpanded;
             });
+            _treeNodeCallbackTokens[treeNode] = token;
             
             // Add to parent or root
             if (parentNode != null)
@@ -975,7 +1004,7 @@ namespace FluentTaskScheduler
                 }
                 else if (tag == "ScriptEditor")
                 {
-                    NavView.Header = L("Main.Header.ScriptEditor", "Script Editor");
+                    NavView.Header = L("Main.Header.ScriptEditor.Text", "Script Editor");
                     TasksViewGrid.Visibility = Visibility.Collapsed;
                     ContentFrame.Visibility = Visibility.Visible;
                     ContentFrame.Navigate(typeof(ScriptEditorPage));
@@ -1090,10 +1119,16 @@ namespace FluentTaskScheduler
             if (BatchActionBar != null)
             {
                 BatchActionBar.Visibility = count > 1 ? Visibility.Visible : Visibility.Collapsed;
-                if (BatchCountText != null) BatchCountText.Text = $"{count} selected";
+                UpdateBatchCountText();
                 UpdateBatchActionsState();
             }
             if (count == 1) ViewModel.SelectedTask = (ScheduledTaskModel)TaskListView.SelectedItem;
+        }
+
+        private void UpdateBatchCountText()
+        {
+            if (BatchCountText == null) return;
+            BatchCountText.Text = string.Format(L("Main.Batch.SelectedCountFormat", "{0} selected"), TaskListView.SelectedItems.Count);
         }
 
         private void TaskCheckBox_Click(object sender, RoutedEventArgs e)
@@ -1128,16 +1163,24 @@ namespace FluentTaskScheduler
         }
         
         private void ToggleSwitch_PointerPressed(object sender, PointerRoutedEventArgs e) => e.Handled = true; // Prevent row click
-        
+
+        // Set while a ListView container is being recycled/rebound to a different task, so the
+        // resulting programmatic IsOn change (which still raises Toggled) isn't mistaken for a user
+        // click. Replaces a FocusState-based heuristic that broke for touch/UIA input (3.11).
+        private bool _isPopulatingToggle = false;
+
+        private void TaskListView_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        {
+            if (args.InRecycleQueue) return;
+            _isPopulatingToggle = true;
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _isPopulatingToggle = false);
+        }
+
         private async void ToggleSwitch_Toggled(object sender, RoutedEventArgs e)
         {
-            if (ViewModel.IsLoading) return;
+            if (ViewModel.IsLoading || _isPopulatingToggle) return;
             if (sender is ToggleSwitch ts && ts.IsLoaded && ts.DataContext is ScheduledTaskModel task)
             {
-                // Only act if the toggle was likely user-initiated (has focus).
-                // Programmatic changes during virtualization/recycling will not have focus.
-                if (ts.FocusState == FocusState.Unfocused) return;
-
                 try
                 {
                     if (task.IsEnabled != ts.IsOn) 
@@ -1310,7 +1353,6 @@ namespace FluentTaskScheduler
             }
         }
 
-        private void HistoryList_KeyDown(object sender, KeyRoutedEventArgs e) { /* Copy logic */ }
 
         // ========================================================================================================
         // Task Operations (Single)
@@ -1324,7 +1366,7 @@ namespace FluentTaskScheduler
                 ViewModel.TaskService.RunTask(ViewModel.SelectedTask.Path);
                 ViewModel.SelectedTask.State = "Running";
                 ViewModel.SelectedTask.IsRunning = true;
-                _ = WatchTaskUntilFinished(ViewModel.SelectedTask);
+                WatchTaskUntilFinished(ViewModel.SelectedTask);
                 _ = RefreshTaskHistoryAsync(ViewModel.SelectedTask); // Refresh to show "Task Started"
             }
             catch (TaskSnoozedException ex)
@@ -1354,37 +1396,97 @@ namespace FluentTaskScheduler
         /// Polls Task Scheduler every 2 s until the task leaves the Running state,
         /// then writes the real state back to the model on the UI thread.
         /// </summary>
-        private async System.Threading.Tasks.Task WatchTaskUntilFinished(ScheduledTaskModel task)
+        // Shared by every WatchTaskUntilFinished caller: previously each started task got its own
+        // 2-second poller that opened a brand-new TaskService and looked itself up individually, so
+        // a batch run of N tasks spawned N parallel pollers each doing their own COM round-trip
+        // every tick. One shared loop now polls every watched path in a single bulk call (3.5).
+        private readonly Dictionary<string, ScheduledTaskModel> _watchedTasks = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, DateTime> _watchStartTimesUtc = new(StringComparer.OrdinalIgnoreCase);
+        private bool _taskWatcherRunning = false;
+        private const int TaskWatcherPollIntervalMs = 2000;
+        private static readonly TimeSpan MaxTaskWatchDuration = TimeSpan.FromMinutes(10);
+
+        private void WatchTaskUntilFinished(ScheduledTaskModel task)
         {
-            const int pollIntervalMs = 2000;
-            const int maxPolls = 300; // 10 minutes max
-            for (int i = 0; i < maxPolls; i++)
+            if (string.IsNullOrEmpty(task.Path)) return;
+
+            bool needsStart;
+            lock (_watchedTasks)
             {
-                await System.Threading.Tasks.Task.Delay(pollIntervalMs);
-                try
-                {
-                    string? liveState = await System.Threading.Tasks.Task.Run(
-                        () => ViewModel.TaskService.GetTaskDetails(task.Path)?.State);
-
-                    if (liveState == null) break; // task was deleted
-
-                    DispatcherQueue.TryEnqueue(() =>
-                    {
-                        task.State = liveState;
-                        if (liveState != "Running")
-                            task.IsRunning = false;  // hide the ring
-                    });
-
-                    if (liveState != "Running") break;
-                }
-                catch { break; }
+                _watchedTasks[task.Path] = task;
+                _watchStartTimesUtc[task.Path] = DateTime.UtcNow;
+                needsStart = !_taskWatcherRunning;
+                if (needsStart) _taskWatcherRunning = true;
             }
-            // Safety net: ensure the ring is cleared even if we exit via maxPolls or exception
-            DispatcherQueue.TryEnqueue(() => 
+
+            if (needsStart) _ = RunTaskWatcherLoop();
+        }
+
+        private async System.Threading.Tasks.Task RunTaskWatcherLoop()
+        {
+            try
             {
-                task.IsRunning = false;
-                _ = RefreshTaskHistoryAsync(task); // Final refresh when finished
-            });
+                while (true)
+                {
+                    await System.Threading.Tasks.Task.Delay(TaskWatcherPollIntervalMs);
+
+                    List<string> paths;
+                    lock (_watchedTasks) { paths = _watchedTasks.Keys.ToList(); }
+                    if (paths.Count == 0) break;
+
+                    Dictionary<string, string> statesByPath;
+                    try
+                    {
+                        statesByPath = await System.Threading.Tasks.Task.Run(() =>
+                            ViewModel.TaskService.GetAllTasks(recursive: true)
+                                .Where(t => !string.IsNullOrEmpty(t.Path))
+                                .GroupBy(t => t.Path, StringComparer.OrdinalIgnoreCase)
+                                .ToDictionary(g => g.Key, g => g.First().State, StringComparer.OrdinalIgnoreCase));
+                    }
+                    catch
+                    {
+                        continue; // transient error — retry next tick rather than abandoning every watch
+                    }
+
+                    var now = DateTime.UtcNow;
+                    var finishedPaths = new List<string>();
+                    foreach (var path in paths)
+                    {
+                        if (!_watchedTasks.TryGetValue(path, out var task)) continue;
+
+                        bool taskDeleted = !statesByPath.TryGetValue(path, out var liveState);
+                        bool timedOut = now - _watchStartTimesUtc.GetValueOrDefault(path, now) > MaxTaskWatchDuration;
+                        bool stillRunning = !taskDeleted && liveState == "Running";
+
+                        if (!stillRunning || timedOut)
+                        {
+                            finishedPaths.Add(path);
+                            DispatcherQueue.TryEnqueue(() =>
+                            {
+                                if (!taskDeleted) task.State = liveState!;
+                                task.IsRunning = false;
+                                _ = RefreshTaskHistoryAsync(task); // Final refresh when finished
+                            });
+                        }
+                        else
+                        {
+                            DispatcherQueue.TryEnqueue(() => task.State = liveState!);
+                        }
+                    }
+
+                    if (finishedPaths.Count > 0)
+                    {
+                        lock (_watchedTasks)
+                        {
+                            foreach (var p in finishedPaths) { _watchedTasks.Remove(p); _watchStartTimesUtc.Remove(p); }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                lock (_watchedTasks) { _taskWatcherRunning = false; }
+            }
         }
 
         private async void DeleteTask_Click(object sender, RoutedEventArgs e)
@@ -1807,7 +1909,7 @@ namespace FluentTaskScheduler
             }
             catch (Exception ex)
             {
-                EditTaskErrorBar.Message = "Failed to save task: " + ex.Message;
+                EditTaskErrorBar.Message = L("Dialog.Error.SaveTaskFailedPrefix", "Failed to save task: ") + ex.Message;
                 EditTaskErrorBar.IsOpen = true;
             }
         }
@@ -2355,7 +2457,7 @@ namespace FluentTaskScheduler
                     // The watcher below corrects IsRunning; log so a silent failure is traceable.
                     LogService.Error($"Batch run could not start task '{t.Path}'.", ex);
                 }
-                _ = WatchTaskUntilFinished(t);
+                WatchTaskUntilFinished(t);
             }
         }
         private void BatchStop_Click(object sender, RoutedEventArgs e) => PerformBatchAction(t => { ViewModel.TaskService.StopTask(t.Path); t.State = "Ready"; t.IsRunning = false; });
@@ -2488,17 +2590,17 @@ namespace FluentTaskScheduler
         {
             var flyout = new MenuFlyout();
 
-            var newFolderItem = new MenuFlyoutItem { Text = "New Subfolder", Icon = new SymbolIcon(Symbol.Add) };
+            var newFolderItem = new MenuFlyoutItem { Text = L("FolderMenu.NewSubfolder", "New Subfolder"), Icon = new SymbolIcon(Symbol.Add) };
             newFolderItem.Click += (s, args) => CreateFolder_Click(folder.Path);
             flyout.Items.Add(newFolderItem);
 
             if (folder.Path != "\\")
             {
-                var renameItem = new MenuFlyoutItem { Text = "Rename", Icon = new SymbolIcon(Symbol.Rename) };
+                var renameItem = new MenuFlyoutItem { Text = L("FolderMenu.Rename", "Rename"), Icon = new SymbolIcon(Symbol.Rename) };
                 renameItem.Click += (s, args) => RenameFolder_Click(folder.Path, folder.Name);
                 flyout.Items.Add(renameItem);
 
-                var deleteItem = new MenuFlyoutItem { Text = "Delete", Icon = new SymbolIcon(Symbol.Delete) };
+                var deleteItem = new MenuFlyoutItem { Text = L("FolderMenu.Delete", "Delete"), Icon = new SymbolIcon(Symbol.Delete) };
                 deleteItem.Click += (s, args) => DeleteFolder_Click(folder.Path);
                 flyout.Items.Add(deleteItem);
             }

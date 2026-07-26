@@ -205,6 +205,17 @@
                          Visibility="Collapsed"
                          Grid.Row="0"
                          Canvas.ZIndex="100"/>
+
+                <!-- Surfaced when LoadTasksAsync fails, so a stale/empty list isn't silently shown (3.11) -->
+                <InfoBar x:Name="TaskListErrorBar"
+                         Severity="Error"
+                         Title="Could not load tasks"
+                         Message="{x:Bind ViewModel.LoadErrorMessage, Mode=OneWay}"
+                         IsOpen="{x:Bind ViewModel.HasLoadError, Mode=OneWay}"
+                         IsClosable="True"
+                         Margin="16,8,16,0"
+                         Grid.Row="0"
+                         Canvas.ZIndex="100"/>
                 
                 <!-- Loading Ring -->
                 <ProgressRing x:Name="LoadingRing" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Width="50" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Canvas.ZIndex="100" Grid.RowSpan="2"/>
@@ -221,41 +232,41 @@
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="16,0,0,0">
                         <TextBlock x:Name="BatchCountText" Text="0 selected" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <Rectangle Width="1" Height="24" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-                        <Button x:Name="BatchRunBtn" Click="BatchRun_Click" ToolTipService.ToolTip="Run Selected">
+                        <Button x:Name="BatchRunBtn" Click="BatchRun_Click">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <SymbolIcon Symbol="Play"/>
-                                <TextBlock Text="Run"/>
+                                <TextBlock x:Name="BatchRunBtnText" Text="Run"/>
                             </StackPanel>
                         </Button>
-                        <Button x:Name="BatchStopBtn" Click="BatchStop_Click" ToolTipService.ToolTip="Stop Selected">
+                        <Button x:Name="BatchStopBtn" Click="BatchStop_Click">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <SymbolIcon Symbol="Stop"/>
-                                <TextBlock Text="Stop"/>
+                                <TextBlock x:Name="BatchStopBtnText" Text="Stop"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
-                    
+
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,16,0">
-                       <Button x:Name="BatchEnableBtn" Click="BatchEnable_Click" ToolTipService.ToolTip="Enable Selected">
+                       <Button x:Name="BatchEnableBtn" Click="BatchEnable_Click">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <SymbolIcon Symbol="Accept"/>
-                                <TextBlock Text="Enable"/>
+                                <TextBlock x:Name="BatchEnableBtnText" Text="Enable"/>
                             </StackPanel>
                         </Button>
-                        <Button x:Name="BatchDisableBtn" Click="BatchDisable_Click" ToolTipService.ToolTip="Disable Selected">
+                        <Button x:Name="BatchDisableBtn" Click="BatchDisable_Click">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <SymbolIcon Symbol="Cancel"/>
-                                <TextBlock Text="Disable"/>
+                                <TextBlock x:Name="BatchDisableBtnText" Text="Disable"/>
                             </StackPanel>
                         </Button>
                         <Rectangle Width="1" Height="24" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-                        <Button x:Name="BatchDeleteBtn" Click="BatchDelete_Click" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" Foreground="White" ToolTipService.ToolTip="Delete Selected">
+                        <Button x:Name="BatchDeleteBtn" Click="BatchDelete_Click" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" Foreground="White">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <SymbolIcon Symbol="Delete"/>
-                                <TextBlock Text="Delete"/>
+                                <TextBlock x:Name="BatchDeleteBtnText" Text="Delete"/>
                             </StackPanel>
                         </Button>
-                        <Button x:Name="BatchCancelBtn" Click="BatchCancel_Click" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Clear Selection">
+                        <Button x:Name="BatchCancelBtn" Click="BatchCancel_Click" Background="Transparent" BorderThickness="0">
                             <SymbolIcon Symbol="Cancel"/>
                         </Button>
                     </StackPanel>
@@ -290,7 +301,7 @@
                     <Button x:Name="ShortcutsButton" Content="?" Width="38" ToolTipService.ToolTip="Keyboard Shortcuts (F1)" Click="ShortcutsButton_Click" />
                 </StackPanel>
 
-                <ListView x:Name="TaskListView" 
+                <ListView x:Name="TaskListView"
                           Grid.Row="1"
                           SelectionMode="Extended"
                           IsItemClickEnabled="True"
@@ -299,6 +310,7 @@
                           ItemsSource="{x:Bind FilteredTasks}"
                           CanDragItems="True"
                           DragItemsStarting="TaskListView_DragItemsStarting"
+                          ContainerContentChanging="TaskListView_ContainerContentChanging"
                           Padding="0">
                     <!-- Disable default animations for snappy filtering -->
                     <ListView.ItemContainerTransitions>
@@ -333,27 +345,27 @@
                                         <Border Background="{ThemeResource SystemControlBackgroundAccentBrush}" 
                                                 CornerRadius="4" Padding="4,0" 
                                                 Visibility="{x:Bind Category, Converter={StaticResource StringToVisibilityConverter}, Mode=OneWay}"
-                                                Tapped="CategoryBadge_Tapped" ToolTipService.ToolTip="Filter by this category"
+                                                Tapped="CategoryBadge_Tapped" ToolTipService.ToolTip="{x:Bind local:MainPage.Loc('Main.Badge.FilterByCategory', 'Filter by this category')}"
                                                 MaxWidth="150">
                                             <TextBlock Text="{x:Bind Category}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="White" FontSize="10" TextTrimming="CharacterEllipsis"/>
                                         </Border>
-                                        <Border Background="{ThemeResource SystemFillColorNeutralBrush}" 
-                                                CornerRadius="4" Padding="4,0" 
+                                        <Border Background="{ThemeResource SystemFillColorNeutralBrush}"
+                                                CornerRadius="4" Padding="4,0"
                                                 Visibility="{x:Bind IsHidden, Converter={StaticResource BoolToVisibilityConverter}, Mode=OneWay}">
-                                            <TextBlock Text="Hidden" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10"/>
+                                            <TextBlock Text="{x:Bind local:MainPage.Loc('Main.Badge.Hidden', 'Hidden')}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10"/>
                                         </Border>
-                                        <Border Background="{ThemeResource SystemFillColorNeutralBrush}" 
-                                                CornerRadius="4" Padding="4,0" 
+                                        <Border Background="{ThemeResource SystemFillColorNeutralBrush}"
+                                                CornerRadius="4" Padding="4,0"
                                                 Visibility="{x:Bind IsFromEventLog, Converter={StaticResource BoolToVisibilityConverter}, Mode=OneWay}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <FontIcon Glyph="&#xE81C;" FontSize="10" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="From History" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10"/>
+                                                <TextBlock Text="{x:Bind local:MainPage.Loc('Main.Badge.FromHistory', 'From History')}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10"/>
                                             </StackPanel>
                                         </Border>
                                         <Border Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}"
                                                 CornerRadius="4" Padding="4,0"
                                                 Visibility="{x:Bind IsReadOnlyFallback, Converter={StaticResource BoolToVisibilityConverter}, Mode=OneWay}">
-                                            <TextBlock Text="Read Only" Style="{StaticResource CaptionTextBlockStyle}" Foreground="White" FontSize="10"/>
+                                            <TextBlock Text="{x:Bind local:MainPage.Loc('Main.Badge.ReadOnly', 'Read Only')}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="White" FontSize="10"/>
                                         </Border>
                                         <Border Background="{ThemeResource SystemFillColorNeutralBrush}"
                                                 CornerRadius="4" Padding="4,0"
@@ -370,7 +382,7 @@
                                                 ToolTipService.ToolTip="{x:Bind PipelineSummary, Mode=OneWay}">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <FontIcon Glyph="&#xE9D5;" FontSize="10" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                <TextBlock Text="Chained" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10"/>
+                                                <TextBlock Text="{x:Bind local:MainPage.Loc('Main.Badge.Chained', 'Chained')}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10"/>
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>
@@ -558,9 +570,9 @@
                         </Grid>
                     </Grid>
                     
-                    <ListView x:Name="InlineHistoryListView" MaxHeight="170" SelectionMode="Single" 
+                    <ListView x:Name="InlineHistoryListView" MaxHeight="170" SelectionMode="Single"
                               IsItemClickEnabled="True" ItemClick="HistoryList_ItemClick"
-                              PreviewKeyDown="HistoryList_KeyDown" Margin="0,0,16,0">
+                              Margin="0,0,16,0">
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Grid Padding="8">

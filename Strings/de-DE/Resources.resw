@@ -737,4 +737,67 @@ Jetzt App neustarten?</value></data>
   <data name="Library.Search.Placeholder" xml:space="preserve"><value>Suchen...</value></data>
   <data name="Library.Search.NoTemplates" xml:space="preserve"><value>Keine Vorlagen entsprechen deiner Suche.</value></data>
   <data name="Library.Search.NoScripts" xml:space="preserve"><value>Keine Skripte entsprechen deiner Suche.</value></data>
+
+  <!-- Added while closing localization gaps found during the S3 audit pass (3.2) -->
+  <data name="App.WindowTitleSuffixFormat" xml:space="preserve"><value>Fenster {0}</value></data>
+  <data name="Dashboard.ProcessActive" xml:space="preserve"><value>Prozess aktiv (PID {0})</value></data>
+  <data name="Dashboard.ProcessNotFound" xml:space="preserve"><value>Prozess nicht gefunden</value></data>
+  <data name="Dashboard.ProcessUnableToCheck" xml:space="preserve"><value>Überprüfung nicht möglich</value></data>
+  <data name="Dialog.Cancel" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="Dialog.Delete" xml:space="preserve"><value>Löschen</value></data>
+  <data name="Dialog.Error.EmptyName" xml:space="preserve"><value>Der Aufgabenname darf nicht leer sein.</value></data>
+  <data name="Dialog.Error.InvalidIdleDuration" xml:space="preserve"><value>„{0}" ist keine gültige Leerlaufdauer. Verwenden Sie einen Wert wie 10m, 1h oder eine ISO-8601-Dauer wie PT10M.</value></data>
+  <data name="Dialog.Error.InvalidRandomDelay" xml:space="preserve"><value>„{0}" ist kein gültiger Wert für die zufällige Verzögerung. Verwenden Sie eine ISO-8601-Dauer wie PT30M oder PT1H.</value></data>
+  <data name="Dialog.Error.InvalidRestartInterval" xml:space="preserve"><value>„{0}" ist kein gültiges Neustartintervall. Verwenden Sie einen Wert wie 1m, 30s oder eine ISO-8601-Dauer wie PT1M.</value></data>
+  <data name="Dialog.Error.InvalidStopAfter" xml:space="preserve"><value>„{0}" ist keine gültige Dauer für „Aufgabe beenden, wenn sie länger läuft als". Verwenden Sie eine ISO-8601-Dauer wie PT90M oder P1D.</value></data>
+  <data name="Dialog.Error.RenameDuplicated" xml:space="preserve"><value>Umbenennen fehlgeschlagen: Sowohl „{0}" als auch „{1}" existieren jetzt. Bitte löschen Sie eines davon manuell in der Aufgabenplanung.</value></data>
+  <data name="Dialog.Error.RenameFailed" xml:space="preserve"><value>„{0}" konnte nicht in „{1}" umbenannt werden: Die alte Aufgabe konnte nicht gelöscht werden ({2}).</value></data>
+  <data name="Dialog.Error.SaveTaskFailedPrefix" xml:space="preserve"><value>Aufgabe konnte nicht gespeichert werden: </value></data>
+  <data name="Dialog.GetStarted" xml:space="preserve"><value>Los geht's</value></data>
+  <data name="Dialog.Next" xml:space="preserve"><value>Weiter</value></data>
+  <data name="Dialog.UnsupportedElements" xml:space="preserve"><value>Diese Aufgabe enthält Elemente, die FluentTaskScheduler nicht sicher bearbeiten kann ({0}). Das Bearbeiten und Speichern hier würde diese Elemente entfernen oder beschädigen. Verwenden Sie die Windows-Aufgabenplanung, um diese Aufgabe zu ändern.</value></data>
+  <data name="FolderMenu.Delete" xml:space="preserve"><value>Löschen</value></data>
+  <data name="FolderMenu.NewSubfolder" xml:space="preserve"><value>Neuer Unterordner</value></data>
+  <data name="FolderMenu.Rename" xml:space="preserve"><value>Umbenennen</value></data>
+  <data name="Main.Batch.ClearSelectionTooltip" xml:space="preserve"><value>Auswahl aufheben</value></data>
+  <data name="Main.Batch.Delete" xml:space="preserve"><value>Löschen</value></data>
+  <data name="Main.Batch.DeleteTooltip" xml:space="preserve"><value>Auswahl löschen</value></data>
+  <data name="Main.Batch.Disable" xml:space="preserve"><value>Deaktivieren</value></data>
+  <data name="Main.Batch.DisableTooltip" xml:space="preserve"><value>Auswahl deaktivieren</value></data>
+  <data name="Main.Batch.Enable" xml:space="preserve"><value>Aktivieren</value></data>
+  <data name="Main.Batch.EnableTooltip" xml:space="preserve"><value>Auswahl aktivieren</value></data>
+  <data name="Main.Batch.Run" xml:space="preserve"><value>Ausführen</value></data>
+  <data name="Main.Batch.RunTooltip" xml:space="preserve"><value>Auswahl ausführen</value></data>
+  <data name="Main.Batch.SelectedCountFormat" xml:space="preserve"><value>{0} ausgewählt</value></data>
+  <data name="Main.Batch.Stop" xml:space="preserve"><value>Stopp</value></data>
+  <data name="Main.Batch.StopTooltip" xml:space="preserve"><value>Auswahl stoppen</value></data>
+  <data name="Main.Badge.Chained" xml:space="preserve"><value>Verkettet</value></data>
+  <data name="Main.Badge.FilterByCategory" xml:space="preserve"><value>Nach dieser Kategorie filtern</value></data>
+  <data name="Main.Badge.FromHistory" xml:space="preserve"><value>Aus dem Verlauf</value></data>
+  <data name="Main.Badge.Hidden" xml:space="preserve"><value>Ausgeblendet</value></data>
+  <data name="Main.Badge.ReadOnly" xml:space="preserve"><value>Schreibgeschützt</value></data>
+  <data name="Onboarding.Step1.Body" xml:space="preserve"><value>Verwalten Sie die Windows-Aufgabenplanung mit einer modernen, fluenten Oberfläche — kein XML, kein Aufwand.</value></data>
+  <data name="Onboarding.Step1.Title" xml:space="preserve"><value>Willkommen bei FluentTaskScheduler</value></data>
+  <data name="Onboarding.Step2.Body" xml:space="preserve"><value>Klicken Sie auf + Neue Aufgabe, um ein Programm, Skript oder einen Befehl automatisch ausführen zu lassen — täglich, bei der Anmeldung, bei einem Ereignis und mehr.</value></data>
+  <data name="Onboarding.Step2.Title" xml:space="preserve"><value>Erstellen Sie Ihre erste Aufgabe</value></data>
+  <data name="Onboarding.Step3.Body" xml:space="preserve"><value>Gruppieren Sie zusammengehörige Aufgaben mit der Seitenleiste in Ordnern, ganz wie im Windows-Explorer. Ihr zuletzt verwendeter Ordner wird über Neustarts hinweg gemerkt.</value></data>
+  <data name="Onboarding.Step3.Title" xml:space="preserve"><value>Mit Ordnern organisieren</value></data>
+  <data name="Onboarding.Step4.Body" xml:space="preserve"><value>Klicken Sie auf eine Aufgabe, um deren Verlauf, Erfolgs- und Fehleranzahl sowie den Live-Status anzuzeigen — alles an einem Ort.</value></data>
+  <data name="Onboarding.Step4.Title" xml:space="preserve"><value>Verlauf &amp; Status verfolgen</value></data>
+  <data name="Onboarding.Step5.Body" xml:space="preserve"><value>FluentTaskScheduler prüft bei jedem Start automatisch auf Updates. Sie können auch jederzeit manuell unter Einstellungen → Info → Nach Updates suchen prüfen.</value></data>
+  <data name="Onboarding.Step5.Title" xml:space="preserve"><value>Immer aktuell</value></data>
+  <data name="Onboarding.Step6.Body" xml:space="preserve"><value>Verwenden Sie die Aufgabenerkennung, um das Windows-Ereignisprotokoll zu durchsuchen und Aufgaben, die von anderen Anwendungen erstellt wurden, automatisch zu importieren — keine manuelle Neuerstellung nötig.</value></data>
+  <data name="Onboarding.Step6.Title" xml:space="preserve"><value>Vorhandene Aufgaben entdecken</value></data>
+  <data name="Onboarding.Step7.Body" xml:space="preserve"><value>Gehen Sie zu den Einstellungen, um Mica-Hintergrund zu aktivieren, in die Taskleiste zu minimieren, die Protokollierung zu konfigurieren, den Start mit Windows einzurichten und mehr.</value></data>
+  <data name="Onboarding.Step7.Title" xml:space="preserve"><value>Nach Ihren Wünschen anpassen</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Content" xml:space="preserve"><value>„{0}" löschen?</value></data>
+  <data name="ScriptLibrary.DeleteTemplate.Title" xml:space="preserve"><value>Skript löschen</value></data>
+  <data name="Settings.UpdateApplyFailed.Content" xml:space="preserve"><value>Das Update konnte nicht angewendet werden. Überprüfen Sie das Protokoll für Details oder versuchen Sie es später erneut.</value></data>
+  <data name="Snooze.IncludeMicrosoftTasks" xml:space="preserve"><value>Auch Microsofts eigene geplante Aufgaben pausieren (Defender, Windows Update, Wartung...)</value></data>
+  <data name="Snooze.IncludeMicrosoftTasksWarning" xml:space="preserve"><value>Nicht empfohlen: Das Deaktivieren dieser Aufgaben kann Windows-Sicherheitsscans, Updates und Wartung bis zum Ende der Pause beeinträchtigen.</value></data>
+  <data name="Tray.CloseWindowFormat" xml:space="preserve"><value>✕  {0} schließen</value></data>
+  <data name="Tray.ExitAll" xml:space="preserve"><value>Alle beenden</value></data>
+  <data name="Tray.NewWindow" xml:space="preserve"><value>Neues Fenster</value></data>
+  <data name="Tray.NoHiddenWindows" xml:space="preserve"><value>(Keine ausgeblendeten Fenster)</value></data>
+  <data name="Trigger.Run" xml:space="preserve"><value>Ausführen:</value></data>
 </root>

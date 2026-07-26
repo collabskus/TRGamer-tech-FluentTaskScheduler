@@ -270,6 +270,7 @@ namespace FluentTaskScheduler.Services
         // ── Context Menu ────────────────────────────────────────────────────────────
         private static void ShowContextMenu()
         {
+            string L(string key, string fallback) => LocalizationService.GetString(key, fallback);
             var hidden = GetHiddenWindows?.Invoke() ?? Array.Empty<(string, Action, Action)>();
 
             IntPtr hMenu = CreatePopupMenu();
@@ -277,7 +278,7 @@ namespace FluentTaskScheduler.Services
             if (hidden.Count == 0)
             {
                 // Nothing in tray — grey placeholder so the menu isn't empty
-                AppendMenu(hMenu, MF_STRING | MF_GRAYED, IntPtr.Zero, "(No hidden windows)");
+                AppendMenu(hMenu, MF_STRING | MF_GRAYED, IntPtr.Zero, L("Tray.NoHiddenWindows", "(No hidden windows)"));
                 AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
             }
             else
@@ -285,7 +286,7 @@ namespace FluentTaskScheduler.Services
                 for (int i = 0; i < hidden.Count; i++)
                 {
                     AppendMenu(hMenu, MF_STRING, (IntPtr)(CMD_SHOW_BASE  + i), $"▶  {hidden[i].Name}");
-                    AppendMenu(hMenu, MF_STRING, (IntPtr)(CMD_CLOSE_BASE + i), $"✕  Close {hidden[i].Name}");
+                    AppendMenu(hMenu, MF_STRING, (IntPtr)(CMD_CLOSE_BASE + i), string.Format(L("Tray.CloseWindowFormat", "✕  Close {0}"), hidden[i].Name));
                 }
                 AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
             }
@@ -293,9 +294,9 @@ namespace FluentTaskScheduler.Services
             AppendSnoozeMenu(hMenu);
             AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
 
-            AppendMenu(hMenu, MF_STRING, (IntPtr)CMD_NEW_WINDOW, "New Window");
+            AppendMenu(hMenu, MF_STRING, (IntPtr)CMD_NEW_WINDOW, L("Tray.NewWindow", "New Window"));
             AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
-            AppendMenu(hMenu, MF_STRING, (IntPtr)CMD_EXIT, "Exit All");
+            AppendMenu(hMenu, MF_STRING, (IntPtr)CMD_EXIT, L("Tray.ExitAll", "Exit All"));
 
             GetCursorPos(out POINT pt);
             SetForegroundWindow(_hwnd);

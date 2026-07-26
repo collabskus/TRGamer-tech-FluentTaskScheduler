@@ -70,13 +70,36 @@ namespace FluentTaskScheduler.ViewModels
 
         public MainViewModel()
         {
-            Services.LocalizationService.LanguageChanged += (s, e) => {
-                OnPropertyChanged(nameof(ActionRunPrefix));
-            };
+            Services.LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
+        }
+
+        private void LocalizationService_LanguageChanged(object? sender, EventArgs e)
+        {
+            OnPropertyChanged(nameof(ActionRunPrefix));
+        }
+
+        /// <summary>
+        /// Unsubscribes from the static LocalizationService event. Without this, every MainPage
+        /// (a new one is created per window) keeps its MainViewModel — and everything it
+        /// transitively references — alive forever, even after the window closes (see 3.3).
+        /// </summary>
+        public void Cleanup()
+        {
+            Services.LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
         }
 
         public bool IsTrayIconVisible => Services.SettingsService.EnableTrayIcon;
         public void RefreshTrayIconVisibility() => OnPropertyChanged(nameof(IsTrayIconVisible));
+
+        private string? _loadErrorMessage;
+        /// <summary>Set when the last <see cref="LoadTasksAsync"/> failed, so the page can surface
+        /// an InfoBar instead of the failure only going to Debug output (see 3.11).</summary>
+        public string? LoadErrorMessage
+        {
+            get => _loadErrorMessage;
+            private set { _loadErrorMessage = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasLoadError)); }
+        }
+        public bool HasLoadError => !string.IsNullOrEmpty(_loadErrorMessage);
 
         public async Task LoadTasksAsync()
         {
@@ -89,11 +112,14 @@ namespace FluentTaskScheduler.ViewModels
                 _allTasks = tasks ?? new List<ScheduledTaskModel>();
                 ApplyFilters();
                 Services.TrayIconService.UpdateBadge(_allTasks.Count(t => t.State == "Running"));
+                LoadErrorMessage = null;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading tasks: {ex.Message}");
+                Services.LogService.Error("Failed to load scheduled tasks", ex);
+                LoadErrorMessage = ex.Message;
                 _allTasks = new List<ScheduledTaskModel>();
+                ApplyFilters();
             }
             finally
             {
@@ -236,10 +262,35 @@ namespace FluentTaskScheduler.ViewModels
                 return;
             }
 
-            var resultsSet = new HashSet<ScheduledTaskModel>(results);
+            // LoadTasksAsync always builds brand-new ScheduledTaskModel instances, so a
+            // reference-based diff below would never find a match and this "preserve scroll
+            // position" logic degenerated into remove-everything/insert-everything on every single
+            // refresh. Reusing the existing instance (keyed by Path) and updating its fields in
+            // place is what actually keeps scroll position, selection, and toggle state stable
+            // across a refresh (see 3.4).
+            var existingByPath = new Dictionary<string, ScheduledTaskModel>(StringComparer.OrdinalIgnoreCase);
+            foreach (var t in FilteredTasks)
+            {
+                if (!string.IsNullOrEmpty(t.Path)) existingByPath.TryAdd(t.Path, t);
+            }
+
+            var reconciled = new List<ScheduledTaskModel>(results.Count);
+            foreach (var fresh in results)
+            {
+                if (!string.IsNullOrEmpty(fresh.Path) && existingByPath.TryGetValue(fresh.Path, out var existing))
+                {
+                    existing.UpdateFrom(fresh);
+                    reconciled.Add(existing);
+                }
+                else
+                {
+                    reconciled.Add(fresh);
+                }
+            }
+
+            var resultsSet = new HashSet<ScheduledTaskModel>(reconciled);
             var currentSet = new HashSet<ScheduledTaskModel>(FilteredTasks);
 
-            // Synchronize FilteredTasks with results to preserve scroll position
             // Removing items that are no longer in the filtered results
             for (int i = FilteredTasks.Count - 1; i >= 0; i--)
             {
@@ -251,9 +302,9 @@ namespace FluentTaskScheduler.ViewModels
             }
 
             // Inserting or moving items to match the results list
-            for (int i = 0; i < results.Count; i++)
+            for (int i = 0; i < reconciled.Count; i++)
             {
-                var taskModel = results[i];
+                var taskModel = reconciled[i];
                 if (!currentSet.Contains(taskModel))
                 {
                     FilteredTasks.Insert(i, taskModel);

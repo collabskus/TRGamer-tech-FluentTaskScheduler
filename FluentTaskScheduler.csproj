@@ -23,8 +23,12 @@
         <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
         <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
         <PublishReadyToRun>false</PublishReadyToRun>
-        <DebugType>none</DebugType>
-        <DebugSymbols>false</DebugSymbols>
+        <!-- No PDBs at all (even in Debug) meant crash-log stack traces had no line numbers (3.11).
+             Emit portable PDBs for local/Debug builds; still strip them for Release/publish. -->
+        <DebugType Condition="'$(Configuration)' == 'Debug'">portable</DebugType>
+        <DebugType Condition="'$(Configuration)' != 'Debug'">none</DebugType>
+        <DebugSymbols Condition="'$(Configuration)' == 'Debug'">true</DebugSymbols>
+        <DebugSymbols Condition="'$(Configuration)' != 'Debug'">false</DebugSymbols>
         <SelfContained>true</SelfContained>
     </PropertyGroup>
 

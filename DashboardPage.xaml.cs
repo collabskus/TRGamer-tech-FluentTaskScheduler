@@ -20,9 +20,24 @@ namespace FluentTaskScheduler
             ViewModel = new DashboardViewModel();
             this.NavigationCacheMode = Microsoft.UI.Xaml.Navigation.NavigationCacheMode.Required;
             LocalizationService.LanguageChanged += LocalizationService_LanguageChanged;
-            ViewModel.HealthScoreChanged += (s, e) => DrawHealthRing();
+            ViewModel.HealthScoreChanged += DashboardViewModel_HealthScoreChanged;
             ApplyLocalizedUi();
+
+            // NavigationCacheMode.Required keeps this page instance alive for the lifetime of its
+            // Frame — without this, the static LanguageChanged subscription above (and the
+            // ViewModel's own) would keep the page, its Frame, and its whole window alive forever
+            // even after the window is closed (see 3.3).
+            this.Unloaded += DashboardPage_Unloaded;
         }
+
+        private void DashboardPage_Unloaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            LocalizationService.LanguageChanged -= LocalizationService_LanguageChanged;
+            ViewModel.HealthScoreChanged -= DashboardViewModel_HealthScoreChanged;
+            ViewModel.Cleanup();
+        }
+
+        private void DashboardViewModel_HealthScoreChanged(object? sender, EventArgs e) => DrawHealthRing();
 
         // ── Health ring ─────────────────────────────────────────────────────────
 

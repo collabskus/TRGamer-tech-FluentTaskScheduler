@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace FluentTaskScheduler.Models
@@ -13,6 +15,36 @@ namespace FluentTaskScheduler.Models
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        // Every writable property except identity (Name/Path) and UI-only selection state — used by
+        // UpdateFrom to refresh an existing instance in place instead of MainViewModel replacing it
+        // wholesale on every list refresh (which defeated the ObservableCollection diff's scroll- and
+        // selection-preservation, since LoadTasksAsync always builds brand-new instances — see 3.4).
+        private static readonly PropertyInfo[] _updatableProperties = typeof(ScheduledTaskModel)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead && p.CanWrite && p.GetIndexParameters().Length == 0)
+            .Where(p => p.Name is not (nameof(Name) or nameof(Path) or nameof(IsSelected) or nameof(State) or nameof(IsEnabled)))
+            .ToArray();
+
+        /// <summary>
+        /// Copies every mutable field from <paramref name="fresh"/> (a newly-read task) onto this
+        /// instance, preserving this instance's identity — and therefore its ObservableCollection
+        /// position and IsSelected state — across a list refresh. State and IsEnabled are applied
+        /// first, in that order, matching how TaskServiceWrapper.MapTaskToModel initializes a new
+        /// model (IsEnabled's setter derives State when the task isn't Running).
+        /// </summary>
+        public void UpdateFrom(ScheduledTaskModel fresh)
+        {
+            State = fresh.State;
+            IsEnabled = fresh.IsEnabled;
+            foreach (var prop in _updatableProperties)
+            {
+                var newValue = prop.GetValue(fresh);
+                var oldValue = prop.GetValue(this);
+                if (!Equals(newValue, oldValue))
+                    prop.SetValue(this, newValue);
+            }
         }
 
         private string _state = "";
@@ -87,8 +119,19 @@ namespace FluentTaskScheduler.Models
 
         public string TagsDisplay => Tags.Count > 0 ? string.Join(", ", Tags) : "";
 
-        public DateTime? LastRunTime { get; set; }
-        public DateTime? NextRunTime { get; set; }
+        private DateTime? _lastRunTime;
+        public DateTime? LastRunTime
+        {
+            get => _lastRunTime;
+            set { if (_lastRunTime != value) { _lastRunTime = value; OnPropertyChanged(); } }
+        }
+
+        private DateTime? _nextRunTime;
+        public DateTime? NextRunTime
+        {
+            get => _nextRunTime;
+            set { if (_nextRunTime != value) { _nextRunTime = value; OnPropertyChanged(); } }
+        }
         public int LastTaskResult { get; set; }
         public string Triggers { get; set; } = ""; // Label for display
 
