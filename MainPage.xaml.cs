@@ -186,9 +186,8 @@ namespace FluentTaskScheduler
             SnoozeTaskReboot.Text = L("Snooze.Duration.Reboot", "Until Next Reboot");
             SnoozeTaskCustom.Text = L("Snooze.Duration.Custom", "Custom Time...");
             SnoozeTaskCancel.Text = L("Snooze.Menu.Resume", "Resume Now");
-            TaskSnoozeCustomDialog.Title = L("Task.Snooze.Label", "Snooze");
-            TaskSnoozeCustomDialog.PrimaryButtonText = L("Snooze.Dialog.Confirm", "Snooze");
-            TaskSnoozeCustomDialog.CloseButtonText = L("Dialog.Common.Cancel", "Cancel");
+            TaskSnoozeCustomApply.Content = L("Snooze.Dialog.Confirm", "Snooze");
+            TaskSnoozeCustomCancel.Content = L("Dialog.Common.Cancel", "Cancel");
             TaskSnoozeCustomIntro.Text = L("Task.Snooze.CustomIntro", "Disable this task until:");
             SnoozeSuspendTriggers.Content = L("Snooze.SuspendTriggers", "Also suspend scheduled triggers");
             SnoozeSuspendHint.Text = L("Snooze.SuspendTriggersHint",
@@ -1258,6 +1257,10 @@ namespace FluentTaskScheduler
             TaskSnoozeStatusText.Text = status;
             TaskSnoozeStatusText.Visibility = snoozed ? Visibility.Visible : Visibility.Collapsed;
             SnoozeTaskCancel.Visibility = snoozed ? Visibility.Visible : Visibility.Collapsed;
+
+            // The picker is transient — never leave it open across tasks or reopens.
+            TaskSnoozeCustomPanel.Visibility = Visibility.Collapsed;
+            TaskSnoozeCustomError.IsOpen = false;
         }
 
         private void SnoozeTaskDuration_Click(object sender, RoutedEventArgs e)
@@ -1288,19 +1291,28 @@ namespace FluentTaskScheduler
             AfterTaskSnoozeChanged();
         }
 
-        private async void SnoozeTaskCustom_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Reveals the inline custom-end-time picker. This cannot be a ContentDialog of its own:
+        /// it is invoked from inside TaskDetailsDialog, and WinUI permits only one ContentDialog
+        /// open at a time — the nested ShowAsync threw and the click appeared to do nothing.
+        /// </summary>
+        private void SnoozeTaskCustom_Click(object sender, RoutedEventArgs e)
         {
             if (ViewModel.SelectedTask == null) return;
 
             TaskSnoozeCustomError.IsOpen = false;
             TaskSnoozeCustomDate.Date = DateTimeOffset.Now;
             TaskSnoozeCustomTime.Time = DateTime.Now.AddHours(1).TimeOfDay;
-
-            TaskSnoozeCustomDialog.XamlRoot = this.Content.XamlRoot;
-            await TaskSnoozeCustomDialog.ShowAsync();
+            TaskSnoozeCustomPanel.Visibility = Visibility.Visible;
         }
 
-        private void TaskSnoozeCustomDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        private void TaskSnoozeCustomCancel_Click(object sender, RoutedEventArgs e)
+        {
+            TaskSnoozeCustomPanel.Visibility = Visibility.Collapsed;
+            TaskSnoozeCustomError.IsOpen = false;
+        }
+
+        private void TaskSnoozeCustomApply_Click(object sender, RoutedEventArgs e)
         {
             var task = ViewModel.SelectedTask;
             if (task == null) return;
@@ -1310,18 +1322,18 @@ namespace FluentTaskScheduler
                 var end = TaskSnoozeCustomDate.Date.Date + TaskSnoozeCustomTime.Time;
                 if (end <= DateTime.Now)
                 {
-                    args.Cancel = true;
                     TaskSnoozeCustomError.Message = L("Snooze.Error.PastTime", "Pick a time in the future.");
                     TaskSnoozeCustomError.IsOpen = true;
                     return;
                 }
 
                 TaskSnoozeService.SnoozeUntilLocalTime(task.Path, end);
+                TaskSnoozeCustomPanel.Visibility = Visibility.Collapsed;
+                TaskSnoozeCustomError.IsOpen = false;
                 AfterTaskSnoozeChanged();
             }
             catch (Exception ex)
             {
-                args.Cancel = true;
                 LogService.Error($"Failed to snooze task '{task.Path}' until a custom time.", ex);
                 TaskSnoozeCustomError.Message = ex.Message;
                 TaskSnoozeCustomError.IsOpen = true;

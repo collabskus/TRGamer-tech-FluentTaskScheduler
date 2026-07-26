@@ -614,6 +614,21 @@
                     <TextBlock x:Name="TaskSnoozeStatusText" Margin="0,8,0,0" Visibility="Collapsed"
                                Style="{StaticResource CaptionTextBlockStyle}"
                                Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+
+                    <!-- Custom snooze end time. Inline rather than its own ContentDialog: only one
+                         ContentDialog can be open at a time, and this lives inside TaskDetailsDialog. -->
+                    <StackPanel x:Name="TaskSnoozeCustomPanel" Visibility="Collapsed" Spacing="8" Margin="0,12,0,0">
+                        <TextBlock x:Name="TaskSnoozeCustomIntro" TextWrapping="Wrap" Opacity="0.8"
+                                   Style="{StaticResource CaptionTextBlockStyle}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <DatePicker x:Name="TaskSnoozeCustomDate"/>
+                            <TimePicker x:Name="TaskSnoozeCustomTime" ClockIdentifier="24HourClock"/>
+                            <Button x:Name="TaskSnoozeCustomApply" Click="TaskSnoozeCustomApply_Click"
+                                    Style="{StaticResource AccentButtonStyle}"/>
+                            <Button x:Name="TaskSnoozeCustomCancel" Click="TaskSnoozeCustomCancel_Click"/>
+                        </StackPanel>
+                        <InfoBar x:Name="TaskSnoozeCustomError" IsOpen="False" Severity="Error" IsClosable="True"/>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
         </ContentDialog>
@@ -1242,20 +1257,6 @@
                 <InfoBar x:Name="SnoozeMicrosoftWarning" IsOpen="False" Severity="Warning" IsClosable="False" Margin="28,-8,0,0"/>
 
                 <InfoBar x:Name="SnoozeDialogError" IsOpen="False" Severity="Error" IsClosable="True"/>
-            </StackPanel>
-        </ContentDialog>
-
-        <!-- Custom end time for a single task's snooze -->
-        <ContentDialog x:Name="TaskSnoozeCustomDialog"
-                       DefaultButton="Primary"
-                       PrimaryButtonClick="TaskSnoozeCustomDialog_PrimaryButtonClick">
-            <StackPanel Spacing="14" MinWidth="380" Margin="0,8,0,0">
-                <TextBlock x:Name="TaskSnoozeCustomIntro" TextWrapping="Wrap" Opacity="0.8"/>
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <DatePicker x:Name="TaskSnoozeCustomDate"/>
-                    <TimePicker x:Name="TaskSnoozeCustomTime" ClockIdentifier="24HourClock"/>
-                </StackPanel>
-                <InfoBar x:Name="TaskSnoozeCustomError" IsOpen="False" Severity="Error" IsClosable="True"/>
             </StackPanel>
         </ContentDialog>
 
