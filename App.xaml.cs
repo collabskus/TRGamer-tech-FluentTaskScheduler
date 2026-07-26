@@ -177,10 +177,16 @@ namespace FluentTaskScheduler
         {
             var args = Environment.GetCommandLineArgs();
 
-            // Only known verbs enter CLI mode — any other first argument (which may come from
-            // Velopack/the shell, e.g. --squirrel-install) falls through to normal GUI launch.
+            // Known verbs enter CLI mode. Update/installer hooks (Velopack, e.g. --squirrel-install)
+            // must fall through to normal GUI launch. Anything else that *looks* like a switch is an
+            // unrecognized command and must report usage with a non-zero exit rather than silently
+            // opening the GUI (1.9).
             var knownCliVerbs = new[] { "--list", "--run", "--enable", "--disable", "--export-history", "--help", "-h", "/?" };
-            bool isCliInvocation = args.Length > 1 && knownCliVerbs.Contains(args[1].ToLowerInvariant());
+            string firstArg = args.Length > 1 ? args[1].ToLowerInvariant() : string.Empty;
+            bool isInstallerHook = firstArg.StartsWith("--squirrel-") || firstArg.StartsWith("--veloapp-");
+            bool looksLikeSwitch = firstArg.StartsWith("-") || firstArg.StartsWith("/");
+            bool isCliInvocation = args.Length > 1 && !isInstallerHook
+                && (knownCliVerbs.Contains(firstArg) || looksLikeSwitch);
 
             if (isCliInvocation)
             {

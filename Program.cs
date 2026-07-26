@@ -2,7 +2,6 @@ using System;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
-using Microsoft.Windows.ApplicationModel.DynamicDependency;
 using Velopack;
 
 namespace FluentTaskScheduler
@@ -13,24 +12,22 @@ namespace FluentTaskScheduler
         [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
         private static extern void XamlCheckProcessRequirements();
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern IntPtr AddDllDirectory(string lpPathName);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern bool SetDefaultDllDirectories(uint directoryFlags);
+        // NOTE: do not reintroduce SetDefaultDllDirectories/AddDllDirectory here. Narrowing the
+        // process-wide DLL search order breaks the LoadLibraryEx-by-relative-name calls that XAML
+        // uses to pull in its theme resource DLLs, which fails app startup with
+        // "Cannot locate resource from 'ms-appx:///Microsoft.UI.Xaml/Themes/themeresources.xaml'".
+        // The application directory is already first in the default search order, so for a
+        // self-contained build (runtime DLLs sit next to the exe) these calls bought us nothing.
+        //
+        // Likewise, do not call Bootstrap.Initialize: that is for framework-dependent unpackaged
+        // apps and adds the MSIX-installed runtime to the process package graph. This app is built
+        // WindowsAppSDKSelfContained, so the runtime next to the exe is the one to use.
 
         [STAThread]
         static void Main(string[] args)
         {
-            // Set the DLL search path to include the application directory.
-            // This is critical for ARM64 and self-contained builds where native DLLs
-            // might not be found by the default search logic.
-            string appDir = AppDomain.CurrentDomain.BaseDirectory;
-            AddDllDirectory(appDir);
-            SetDefaultDllDirectories(0x00001000); // LOAD_LIBRARY_SEARCH_DEFAULT_DIRS
-
             // Initialize ComWrappers as early as possible for WinRT support.
-            // This MUST be done before any WinRT types are accessed or the bootstrapper runs.
+            // This MUST be done before any WinRT types are accessed.
             WinRT.ComWrappersSupport.InitializeComWrappers();
 
             // VeloPack: Handle install/uninstall/update hooks before anything else.
@@ -49,26 +46,6 @@ namespace FluentTaskScheduler
                 }
             }
 
-            // Initialize the Windows App SDK bootstrapper for unpackaged apps
-            try
-            {
-                // In a self-contained environment, we check if we should even call the bootstrapper.
-                // If WindowsAppSDKSelfContained is true, the runtime is next to the EXE.
-                // However, for custom Main methods, calling Bootstrap.Initialize with the right version
-                // helps the WinRT subsystem find the metadata even if the manifest merging is tricky.
-                
-                // We use Windows App SDK 1.5 (0x00010005). We use an empty tag to avoid issues with 
-                // specific servicing versions that might not be present on the target machine.
-                Bootstrap.Initialize(0x00010005, "");
-            }
-            catch (Exception ex)
-            {
-                // If this fails, it's often because the Framework Package isn't installed.
-                // In self-contained scenarios, this is expected to fail on machines without the SDK,
-                // but we carry on and hope the local DLLs and manifest are enough.
-                System.Diagnostics.Debug.WriteLine($"Bootstrap initialization failed: {ex.Message}");
-            }
-
             try
             {
                 XamlCheckProcessRequirements();
@@ -78,19 +55,12 @@ namespace FluentTaskScheduler
                 System.Diagnostics.Debug.WriteLine($"XamlCheckProcessRequirements failed: {ex.Message}");
             }
 
-            try
+            Application.Start((p) =>
             {
-                Application.Start((p) =>
-                {
-                    var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
-                    System.Threading.SynchronizationContext.SetSynchronizationContext(context);
-                    new App();
-                });
-            }
-            finally
-            {
-                Bootstrap.Shutdown();
-            }
+                var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+                System.Threading.SynchronizationContext.SetSynchronizationContext(context);
+                new App();
+            });
         }
 
         private static bool HasWriteAccessToAppDir()
