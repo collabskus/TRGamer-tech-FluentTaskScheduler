@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace FluentTaskScheduler.Services
@@ -14,6 +15,38 @@ namespace FluentTaskScheduler.Services
             if (string.IsNullOrWhiteSpace(value)) { result = TimeSpan.Zero; return false; }
             try { result = XmlConvert.ToTimeSpan(value); return true; }
             catch { result = TimeSpan.Zero; return false; }
+        }
+
+        private static readonly Regex ShorthandPattern = new(@"^\s*(\d+(?:\.\d+)?)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Accepts either a raw ISO-8601 duration ("PT10M") or a human-friendly shorthand
+        /// ("30s", "10m", "2h", "1d", "1.5h") — placeholders throughout the edit dialog advertise the
+        /// shorthand form, but fields were previously validated with the strict ISO-8601-only
+        /// <see cref="XmlConvert.ToTimeSpan(string)"/>, silently discarding anything else (item 2.3).
+        /// </summary>
+        public static bool TryParseFlexibleDuration(string? value, out TimeSpan result)
+        {
+            if (string.IsNullOrWhiteSpace(value)) { result = TimeSpan.Zero; return false; }
+
+            var match = ShorthandPattern.Match(value);
+            if (match.Success)
+            {
+                double amount = double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+                char unit = char.ToLowerInvariant(match.Groups[2].Value[0]);
+                result = unit switch
+                {
+                    's' => TimeSpan.FromSeconds(amount),
+                    'm' => TimeSpan.FromMinutes(amount),
+                    'h' => TimeSpan.FromHours(amount),
+                    'd' => TimeSpan.FromDays(amount),
+                    _ => TimeSpan.Zero
+                };
+                return true;
+            }
+
+            return TryParseIsoDuration(value, out result);
         }
 
         /// <summary>Canonical wire format for trigger start times: invariant-culture, so it round-trips

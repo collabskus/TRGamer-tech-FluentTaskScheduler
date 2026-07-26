@@ -65,6 +65,7 @@ namespace FluentTaskScheduler.Services
         [DllImport("user32.dll")] private static extern bool DestroyMenu(IntPtr hMenu);
         [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT lpPoint);
         [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern uint RegisterWindowMessage(string lpString);
 
         private const uint MF_STRING    = 0x00000000;
         private const uint MF_SEPARATOR = 0x00000800;
@@ -108,6 +109,12 @@ namespace FluentTaskScheduler.Services
         public static event Action? CustomSnoozeRequested;
 
         // ── Lifecycle ───────────────────────────────────────────────────────────────
+        // Explorer.exe registers this message and broadcasts it to every top-level window after it
+        // (re)starts — that's the signal to re-add the tray icon, since a restarted Explorer starts
+        // with an empty notification area regardless of whether Shell_NotifyIcon(NIM_ADD) was ever
+        // called (see 2.8).
+        private static readonly uint WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");
+
         public static void Initialize(IntPtr hwnd)
         {
             _hwnd = hwnd;
@@ -357,6 +364,15 @@ namespace FluentTaskScheduler.Services
         // ── Win32 message sink ──────────────────────────────────────────────────────
         private static IntPtr SubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)
         {
+            if (uMsg == WM_TASKBARCREATED && WM_TASKBARCREATED != 0)
+            {
+                // Explorer restarted (crash, "Restart Explorer" quick action, etc.) — the icon we
+                // previously added is gone even though _isCreated still says otherwise.
+                _isCreated = false;
+                UpdateVisibility();
+                return IntPtr.Zero;
+            }
+
             if (uMsg == WM_TRAYICON)
             {
                 int eventId = (int)lParam;

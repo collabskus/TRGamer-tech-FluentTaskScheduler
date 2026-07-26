@@ -109,8 +109,10 @@ namespace FluentTaskScheduler.ViewModels
                 Title = LocalizationService.GetString("QuickActions.ClearTemp.Title", "Clear Temp Files"),
                 Description = LocalizationService.GetString("QuickActions.ClearTemp.Desc", "Deletes files from the temporary folders."),
                 Icon = "\uE74D", // Delete
-                Command = "cmd.exe",
-                Arguments = "/c del /q /s %temp%\\*"
+                // "del /q /s" has an unreliable exit code (e.g. it still returns 0 on partial
+                // failures and vice versa); Remove-Item gives a real success/failure signal.
+                Command = "powershell.exe",
+                Arguments = "-ExecutionPolicy Bypass -Command \"Remove-Item -Path $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue\""
             });
 
             Actions.Add(new QuickActionItemViewModel
@@ -130,7 +132,8 @@ namespace FluentTaskScheduler.ViewModels
                 Description = LocalizationService.GetString("QuickActions.IPReleaseRenew.Desc", "Releases and renews the current IP address."),
                 Icon = "\uE839", // Ethernet
                 Command = "ipconfig",
-                Arguments = "/renew"
+                Arguments = "/renew",
+                AdminRequired = true
             });
 
             Actions.Add(new QuickActionItemViewModel

@@ -53,13 +53,15 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <TextBlock x:Name="OutputHeaderText" Text="Output Console" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" Margin="0,0,0,4"/>
-            <ScrollViewer Grid.Row="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="4">
-                <TextBlock x:Name="OutputConsole"
+            <ScrollViewer x:Name="OutputScrollViewer" Grid.Row="1" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="4">
+                <RichTextBlock x:Name="OutputConsole"
                            Margin="12"
                            FontFamily="Consolas, 'Courier New', monospace"
                            FontSize="12"
                            TextWrapping="Wrap"
-                           IsTextSelectionEnabled="True"/>
+                           IsTextSelectionEnabled="True">
+                    <Paragraph x:Name="OutputParagraph"/>
+                </RichTextBlock>
             </ScrollViewer>
         </Grid>
     </Grid>

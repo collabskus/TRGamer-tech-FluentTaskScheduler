@@ -713,29 +713,40 @@ namespace FluentTaskScheduler.ViewModels
         private List<RunningTaskInfo> BuildRunningTaskInfos(List<ScheduledTaskModel> runningTasks)
         {
             var runningInfos = new List<RunningTaskInfo>();
+            var enginePids = runningTasks.Count > 0 ? _taskService.GetRunningTaskEnginePids() : new Dictionary<string, int>();
+
             foreach (var task in runningTasks)
             {
                 var actionCmd = task.ActionCommand;
-                var processName = "";
+                var processName = !string.IsNullOrEmpty(actionCmd) ? System.IO.Path.GetFileNameWithoutExtension(actionCmd.Trim('"')) : "";
                 var processAlive = false;
                 var processStatus = LocalizationService.GetString("Dashboard.Unknown", "Unknown");
 
-                if (!string.IsNullOrEmpty(actionCmd))
+                // Identified via the task's actual engine PID (Task Scheduler's own bookkeeping),
+                // not by matching any process sharing the action's image name — a name match like
+                // "powershell.exe" can hit a completely unrelated process on the machine.
+                if (task.Path != null && enginePids.TryGetValue(task.Path, out int pid))
                 {
-                    // Extract process name from command (e.g. "C:\Python\python.exe" -> "python")
-                    processName = System.IO.Path.GetFileNameWithoutExtension(actionCmd.Trim('"'));
                     try
                     {
-                        var procs = Process.GetProcessesByName(processName);
-                        processAlive = procs.Length > 0;
-                        processStatus = processAlive ? $"Process active ({procs.Length} instance{(procs.Length > 1 ? "s" : "")})" : "Process not found";
-                        foreach (var p in procs) p.Dispose();
+                        using var proc = Process.GetProcessById(pid);
+                        processAlive = true;
+                        processStatus = string.Format(LocalizationService.GetString("Dashboard.ProcessActive", "Process active (PID {0})"), pid);
+                    }
+                    catch (ArgumentException)
+                    {
+                        // No process with that PID — the engine already exited.
+                        processStatus = LocalizationService.GetString("Dashboard.ProcessNotFound", "Process not found");
                     }
                     catch (Exception ex)
                     {
-                        processStatus = "Unable to check";
-                        LogService.Warn($"Could not inspect process '{processName}' for task '{task.Path}': {ex.Message}");
+                        processStatus = LocalizationService.GetString("Dashboard.ProcessUnableToCheck", "Unable to check");
+                        LogService.Warn($"Could not inspect PID {pid} for task '{task.Path}': {ex.Message}");
                     }
+                }
+                else if (!string.IsNullOrEmpty(actionCmd))
+                {
+                    processStatus = LocalizationService.GetString("Dashboard.ProcessNotFound", "Process not found");
                 }
 
                 var duration = "";
@@ -750,7 +761,7 @@ namespace FluentTaskScheduler.ViewModels
                 runningInfos.Add(new RunningTaskInfo
                 {
                     Name = task.Name,
-                    Path = task.Path,
+                    Path = task.Path ?? "",
                     ActionCommand = string.IsNullOrEmpty(processName) ? actionCmd : processName,
                     RunningDuration = duration,
                     ProcessAlive = processAlive,

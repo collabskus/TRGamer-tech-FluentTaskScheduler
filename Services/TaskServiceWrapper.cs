@@ -516,7 +516,13 @@ namespace FluentTaskScheduler.Services
             td.Settings.RunOnlyIfIdle = model.OnlyIfIdle;
             if (!string.IsNullOrWhiteSpace(model.IdleDuration))
             {
-                try { td.Settings.IdleSettings.IdleDuration = System.Xml.XmlConvert.ToTimeSpan(model.IdleDuration); } catch { }
+                // Accepts both ISO-8601 ("PT10M") and the shorthand ("10m") the placeholder text
+                // advertises — previously only the strict ISO form parsed, so shorthand input was
+                // silently discarded (item 2.3).
+                if (DurationUtil.TryParseFlexibleDuration(model.IdleDuration, out var idleDuration))
+                    td.Settings.IdleSettings.IdleDuration = idleDuration;
+                else
+                    LogService.Warn($"Invalid IdleDuration '{model.IdleDuration}' for task '{model.Name}'; leaving the previous idle duration in place.");
             }
             td.Settings.IdleSettings.StopOnIdleEnd = model.StopOnIdleEnd;
             td.Settings.DisallowStartIfOnBatteries = model.DisallowStartOnBatteries || model.OnlyIfAC;
@@ -541,13 +547,11 @@ namespace FluentTaskScheduler.Services
             if (model.RestartOnFailure)
             {
                 TimeSpan restartInterval;
-                try
+                if (string.IsNullOrWhiteSpace(model.RestartInterval))
                 {
-                    restartInterval = string.IsNullOrWhiteSpace(model.RestartInterval)
-                        ? TimeSpan.FromMinutes(1)
-                        : System.Xml.XmlConvert.ToTimeSpan(model.RestartInterval);
+                    restartInterval = TimeSpan.FromMinutes(1);
                 }
-                catch
+                else if (!DurationUtil.TryParseFlexibleDuration(model.RestartInterval, out restartInterval))
                 {
                     LogService.Warn($"Invalid RestartInterval '{model.RestartInterval}' for task '{model.Name}'; defaulting to 1 minute instead of dropping the restart-on-failure policy.");
                     restartInterval = TimeSpan.FromMinutes(1);
@@ -940,6 +944,31 @@ namespace FluentTaskScheduler.Services
         }
 
         /// <summary>
+        /// Returns the actual Task Scheduler engine PID for each currently-running task, keyed by
+        /// task path. Used instead of matching processes by image name — a name match (e.g.
+        /// "powershell.exe") can hit any unrelated process on the machine, not the one this task
+        /// actually started (see item 2.10).
+        /// </summary>
+        public Dictionary<string, int> GetRunningTaskEnginePids()
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var ts = new TaskService();
+                foreach (RunningTask rt in ts.GetRunningTasks(true))
+                {
+                    try { result[rt.Path] = (int)rt.EnginePID; }
+                    catch { /* task may have just finished; PID no longer available */ }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Warn($"Could not enumerate running task engine PIDs: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Reads every task start/completion record from the Task Scheduler operational log within
         /// <paramref name="window"/>, in one pass. Parses the raw event XML instead of calling
         /// <c>FormatDescription()</c> per record, which keeps a full 7-day read responsive.
@@ -1179,17 +1208,19 @@ namespace FluentTaskScheduler.Services
             _ => string.Format(LocalizationService.GetString("EventResult.Unknown", "Event {0}"), eventId)
         };
 
+        /// <summary>
+        /// Reads the event's own "ResultCode" data field by name rather than walking
+        /// <see cref="EventRecord.Properties"/> and guessing — the old code returned the first
+        /// non-zero int property, which could be any field of the event (PID, instance id, etc.),
+        /// not necessarily the exit code (see item 2.11).
+        /// </summary>
         private string GetEventExitCode(EventRecord record)
         {
             try
             {
-                if (record.Properties != null && record.Properties.Count > 0)
-                {
-                    foreach (var prop in record.Properties)
-                    {
-                        if (prop.Value is int exitCode && exitCode != 0) return exitCode.ToString();
-                    }
-                }
+                var data = ReadEventData(record);
+                if (data.TryGetValue("ResultCode", out var rc) && long.TryParse(rc, out long value))
+                    return value == 0 ? "0" : "0x" + ((uint)value).ToString("X8");
                 return "0";
             }
             catch { return "-"; }

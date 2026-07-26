@@ -208,6 +208,18 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock x:Name="MinimizeToTrayTitle" Text="Minimize Button Hides to Tray" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                                    <TextBlock x:Name="MinimizeToTrayDesc" Text="Also hide the window to the tray when you press the minimize button, not just when closing." Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleSwitch x:Name="MinimizeToTrayToggle" Grid.Column="1" VerticalAlignment="Center"
+                                             OffContent="" OnContent="" IsOn="False" Toggled="MinimizeToTrayToggle_Toggled"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource SettingsCardStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
                                     <TextBlock x:Name="SysSmoothTitle" Text="Smooth Scrolling" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                                     <TextBlock x:Name="SysSmoothDesc" Text="Enable inertia-based scrolling throughout the app." Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" TextWrapping="Wrap"/>
                                 </StackPanel>

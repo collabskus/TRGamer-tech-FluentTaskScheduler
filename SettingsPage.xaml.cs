@@ -102,6 +102,8 @@ namespace FluentTaskScheduler
             // System
             RunOnStartupToggle.IsOn = SettingsService.RunOnStartup;
             TrayIconToggle.IsOn = SettingsService.EnableTrayIcon;
+            MinimizeToTrayToggle.IsOn = SettingsService.MinimizeToTray;
+            MinimizeToTrayToggle.IsEnabled = SettingsService.EnableTrayIcon;
             SmoothScrollingToggle.IsOn = SettingsService.SmoothScrolling;
             ShowHiddenTasksToggle.IsOn = SettingsService.ShowHiddenTasks;
             TaskPipelinesToggle.IsOn = SettingsService.EnableTaskPipelines;
@@ -381,9 +383,16 @@ namespace FluentTaskScheduler
         {
             if (!_isLoaded) return;
             SettingsService.EnableTrayIcon = TrayIconToggle.IsOn;
-            SettingsService.MinimizeToTray = TrayIconToggle.IsOn;
             TrayIconService.UpdateVisibility();
-            LogService.Info($"Minimize to Tray: {(TrayIconToggle.IsOn ? "enabled" : "disabled")}");
+            MinimizeToTrayToggle.IsEnabled = TrayIconToggle.IsOn;
+            LogService.Info($"Tray icon: {(TrayIconToggle.IsOn ? "enabled" : "disabled")}");
+        }
+
+        private void MinimizeToTrayToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!_isLoaded) return;
+            SettingsService.MinimizeToTray = MinimizeToTrayToggle.IsOn;
+            LogService.Info($"Minimize to Tray: {(MinimizeToTrayToggle.IsOn ? "enabled" : "disabled")}");
         }
 
         private void SmoothScrollingToggle_Toggled(object sender, RoutedEventArgs e)

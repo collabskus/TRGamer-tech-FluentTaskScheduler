@@ -483,6 +483,20 @@ namespace FluentTaskScheduler
                 }
             };
 
+            // Minimize-to-tray: a separate opt-in from close-to-tray (SS.EnableTrayIcon above) —
+            // minimizing the window hides it to the tray instead of just minimizing to the taskbar.
+            win.AppWindow.Changed += (sender, args) =>
+            {
+                if (!args.DidPresenterChange || !SS.MinimizeToTray || !SS.EnableTrayIcon || rec.IsHidden) return;
+                if (sender.Presenter is Microsoft.UI.Windowing.OverlappedPresenter op &&
+                    op.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized)
+                {
+                    rec.IsHidden = true;
+                    sender.Hide();
+                    Services.NotificationService.ShowMinimizedToTray();
+                }
+            };
+
             win.Activate();
         }
 

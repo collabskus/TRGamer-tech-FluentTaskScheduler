@@ -73,5 +73,40 @@ namespace FluentTaskScheduler.Tests
             Assert.Null(DurationUtil.TryParseScheduleInfo(""));
             Assert.Null(DurationUtil.TryParseScheduleInfo(null));
         }
+
+        // Covers item 2.3: IdleDuration/RestartInterval placeholders advertise shorthand like "10m",
+        // but were previously validated with the strict ISO-8601-only parser.
+        [Theory]
+        [InlineData("30s", 30)]
+        [InlineData("10m", 10 * 60)]
+        [InlineData("2h", 2 * 60 * 60)]
+        [InlineData("1d", 24 * 60 * 60)]
+        [InlineData("1.5h", 90 * 60)]
+        [InlineData("90 sec", 90)]
+        [InlineData("2 hours", 2 * 60 * 60)]
+        public void TryParseFlexibleDuration_AcceptsShorthand(string input, double expectedSeconds)
+        {
+            Assert.True(DurationUtil.TryParseFlexibleDuration(input, out var result));
+            Assert.Equal(expectedSeconds, result.TotalSeconds, precision: 3);
+        }
+
+        [Theory]
+        [InlineData("PT10M")]
+        [InlineData("P1D")]
+        public void TryParseFlexibleDuration_StillAcceptsIso(string input)
+        {
+            Assert.True(DurationUtil.TryParseFlexibleDuration(input, out var result));
+            Assert.True(result > TimeSpan.Zero);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData(null)]
+        [InlineData("garbage")]
+        [InlineData("10 bananas")]
+        public void TryParseFlexibleDuration_RejectsInvalidInput(string? input)
+        {
+            Assert.False(DurationUtil.TryParseFlexibleDuration(input, out _));
+        }
     }
 }

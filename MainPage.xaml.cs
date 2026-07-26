@@ -715,15 +715,14 @@ namespace FluentTaskScheduler
             TaskListView.Focus(FocusState.Programmatic);
             UpdateFolderTreeMaxHeight();
 
-            // Feature 3: restore last-used folder
-            /*
+            // Restore the last-used folder (see 2.2)
             string saved = Services.SettingsService.LastFolderPath;
             if (!string.IsNullOrEmpty(saved) && saved != "\\")
             {
                 _currentFolderPath = saved;
                 ViewModel.SetFilter(saved);
+                SelectFolderTreeNodeForPath(saved);
             }
-            */
 
             // Defer one frame so the ListView control template is fully applied before we set its internal ScrollViewer
             DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
@@ -884,6 +883,19 @@ namespace FluentTaskScheduler
 
         private Dictionary<TreeViewNode, TaskFolderModel> _treeNodeFolderMap = new();
 
+        /// <summary>Expands and selects the tree node for the given folder path, if it still exists
+        /// (used to restore the last-used folder — see 2.2).</summary>
+        private void SelectFolderTreeNodeForPath(string path)
+        {
+            var entry = _treeNodeFolderMap.FirstOrDefault(kv => string.Equals(kv.Value.Path, path, StringComparison.OrdinalIgnoreCase));
+            if (entry.Key == null) return;
+
+            for (var ancestor = entry.Key.Parent; ancestor != null; ancestor = ancestor.Parent)
+                ancestor.IsExpanded = true;
+
+            FolderTreeView.SelectedNode = entry.Key;
+        }
+
         private void AddFolderToTree(TaskFolderModel folder, TreeViewNode? parentNode)
         {
             var displayName = folder.Name == "\\" ? "Task Scheduler Library" : folder.Name;
@@ -919,7 +931,7 @@ namespace FluentTaskScheduler
             if (args.InvokedItem is TreeViewNode node && _treeNodeFolderMap.TryGetValue(node, out var folder))
             {
                 _currentFolderPath = folder.Path;
-                // Services.SettingsService.LastFolderPath = folder.Path; // Feature 3: persist
+                Services.SettingsService.LastFolderPath = folder.Path;
                 ViewModel.SetFilter(folder.Path);
                 
                 // Restore Task View
@@ -1378,27 +1390,32 @@ namespace FluentTaskScheduler
         private async void DeleteTask_Click(object sender, RoutedEventArgs e)
         {
             if (ViewModel.SelectedTask == null) return;
-            
+
             // Hide the details dialog first to avoid "Only a single ContentDialog can be open" error
             try { TaskDetailsDialog.Hide(); } catch { }
 
-            var dialog = new ContentDialog 
-            { 
-                Title = L("Dialog.ConfirmDelete.Title", "Confirm Delete"), 
-                Content = string.Format(L("Dialog.DeleteTask.ContentFormat", "Are you sure you want to delete '{0}'?"), ViewModel.SelectedTask.Name), 
-                PrimaryButtonText = L("Dialog.Common.Delete", "Delete"), 
-                CloseButtonText = L("Dialog.Common.Cancel", "Cancel"), 
-                DefaultButton = ContentDialogButton.Close, 
-                XamlRoot = this.XamlRoot 
-            };
-
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            bool confirmed = !SettingsService.ConfirmDelete;
+            if (!confirmed)
             {
-                try 
-                { 
-                    ViewModel.TaskService.DeleteTask(ViewModel.SelectedTask.Path); 
+                var dialog = new ContentDialog
+                {
+                    Title = L("Dialog.ConfirmDelete.Title", "Confirm Delete"),
+                    Content = string.Format(L("Dialog.DeleteTask.ContentFormat", "Are you sure you want to delete '{0}'?"), ViewModel.SelectedTask.Name),
+                    PrimaryButtonText = L("Dialog.Common.Delete", "Delete"),
+                    CloseButtonText = L("Dialog.Common.Cancel", "Cancel"),
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.XamlRoot
+                };
+                confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
+            }
+
+            if (confirmed)
+            {
+                try
+                {
+                    ViewModel.TaskService.DeleteTask(ViewModel.SelectedTask.Path);
                     _ = ViewModel.LoadTasksAsync();
-                } 
+                }
                 catch (Exception ex) { await ShowErrorDialog(ex.Message); }
             }
         }
@@ -1622,7 +1639,12 @@ namespace FluentTaskScheduler
         {
             args.Cancel = true; // Handle async manually
 
-            if (string.IsNullOrWhiteSpace(EditTaskName.Text)) return;
+            if (string.IsNullOrWhiteSpace(EditTaskName.Text))
+            {
+                EditTaskErrorBar.Message = L("Dialog.Error.EmptyName", "Task name cannot be empty.");
+                EditTaskErrorBar.IsOpen = true;
+                return;
+            }
 
             // "Stop task if runs longer than" is an editable combo box: a typed custom value has no
             // SelectedItem, so it must be read from .Text — falling back to the preset's Tag only
@@ -1654,6 +1676,29 @@ namespace FluentTaskScheduler
                     EditTaskErrorBar.IsOpen = true;
                     return;
                 }
+            }
+
+            // IdleDuration/RestartInterval placeholders advertise a friendly shorthand ("10m", "1h")
+            // but were previously validated with the strict ISO-8601-only parser and silently
+            // discarded on failure (see 2.3).
+            if (EditTaskOnlyIfIdle.IsChecked == true &&
+                !DurationUtil.TryParseFlexibleDuration(EditTaskIdleDurationSetting.Text, out _))
+            {
+                EditTaskErrorBar.Message = string.Format(
+                    L("Dialog.Error.InvalidIdleDuration", "\"{0}\" is not a valid idle duration. Use a value like 10m, 1h, or an ISO-8601 duration such as PT10M."),
+                    EditTaskIdleDurationSetting.Text);
+                EditTaskErrorBar.IsOpen = true;
+                return;
+            }
+            if (EditTaskRestartOnFailure.IsChecked == true &&
+                !string.IsNullOrWhiteSpace(EditTaskRestartInterval.Text) &&
+                !DurationUtil.TryParseFlexibleDuration(EditTaskRestartInterval.Text, out _))
+            {
+                EditTaskErrorBar.Message = string.Format(
+                    L("Dialog.Error.InvalidRestartInterval", "\"{0}\" is not a valid restart interval. Use a value like 1m, 30s, or an ISO-8601 duration such as PT1M."),
+                    EditTaskRestartInterval.Text);
+                EditTaskErrorBar.IsOpen = true;
+                return;
             }
 
             var model = new ScheduledTaskModel
@@ -2144,7 +2189,7 @@ namespace FluentTaskScheduler
         private void AddAction_ShowNotification_Click(object sender, RoutedEventArgs e)
         {
             string ps = "powershell.exe";
-            string args = "-WindowStyle Hidden -Command \"& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Task Notification', 'Fluent Launcher')}\"";
+            string args = "-WindowStyle Hidden -Command \"& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Task Notification', 'FluentTaskScheduler')}\"";
             _tempActions.Add(new TaskActionModel { Command = ps, Arguments = args });
             ActionList.SelectedIndex = _tempActions.Count - 1;
         }
@@ -2319,16 +2364,23 @@ namespace FluentTaskScheduler
         private async void BatchDelete_Click(object sender, RoutedEventArgs e)
         {
             var tasks = TaskListView.SelectedItems.Cast<ScheduledTaskModel>().ToList();
-            var dialog = new ContentDialog
+
+            bool confirmed = !SettingsService.ConfirmDelete;
+            if (!confirmed)
             {
-                Title = L("Dialog.ConfirmDelete.Title", "Confirm Delete"),
-                Content = string.Format(L("Dialog.BatchDelete.ContentFormat", "Delete {0} tasks?"), tasks.Count),
-                PrimaryButtonText = L("Dialog.Common.Delete", "Delete"),
-                CloseButtonText = L("Dialog.Common.Cancel", "Cancel"),
-                DefaultButton = ContentDialogButton.Close,
-                XamlRoot = this.XamlRoot
-            };
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                var dialog = new ContentDialog
+                {
+                    Title = L("Dialog.ConfirmDelete.Title", "Confirm Delete"),
+                    Content = string.Format(L("Dialog.BatchDelete.ContentFormat", "Delete {0} tasks?"), tasks.Count),
+                    PrimaryButtonText = L("Dialog.Common.Delete", "Delete"),
+                    CloseButtonText = L("Dialog.Common.Cancel", "Cancel"),
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.XamlRoot
+                };
+                confirmed = await dialog.ShowAsync() == ContentDialogResult.Primary;
+            }
+
+            if (confirmed)
             {
                 foreach (var t in tasks) try { ViewModel.TaskService.DeleteTask(t.Path); } catch { }
                 _ = ViewModel.LoadTasksAsync();

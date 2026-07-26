@@ -20,7 +20,11 @@ namespace FluentTaskScheduler.Dialogs
             public bool ShowAdminWarn { get; init; } // admin-rights warning
         }
 
-        private static readonly Step[] Steps = new[]
+        // Built per-instance (not static) so replaying onboarding after a language switch shows the
+        // current language instead of whatever was active the first time this type was loaded (2.5).
+        private readonly Step[] _steps;
+
+        private static Step[] BuildSteps() => new[]
         {
             new Step
             {
@@ -104,15 +108,21 @@ namespace FluentTaskScheduler.Dialogs
         public OnboardingDialog()
         {
             this.InitializeComponent();
+            _steps = BuildSteps();
             BuildDots();
             UpdateStep();
+
+            // Mark onboarding as seen on ANY close path (Next-through-to-"Get Started", ESC, light
+            // dismiss) — previously only reaching the final step and clicking through set the flag,
+            // so dismissing any other way reopened the dialog on every launch (2.5).
+            this.Closed += (s, e) => Services.SettingsService.HasCompletedOnboarding = true;
         }
 
         // ── Dot indicators ───────────────────────────────────────────────────────
         private void BuildDots()
         {
-            _dots = new Ellipse[Steps.Length];
-            for (int i = 0; i < Steps.Length; i++)
+            _dots = new Ellipse[_steps.Length];
+            for (int i = 0; i < _steps.Length; i++)
             {
                 var dot = new Ellipse
                 {
@@ -127,7 +137,7 @@ namespace FluentTaskScheduler.Dialogs
         // ── Step renderer ────────────────────────────────────────────────────────
         private void UpdateStep()
         {
-            var step = Steps[_currentStep];
+            var step = _steps[_currentStep];
 
             // Icon & title & body
             StepIcon.Glyph  = step.Icon;
@@ -142,7 +152,7 @@ namespace FluentTaskScheduler.Dialogs
             BackButton.Visibility = _currentStep == 0 ? Visibility.Collapsed : Visibility.Visible;
 
             // Next / Get Started button
-            bool isLast = _currentStep == Steps.Length - 1;
+            bool isLast = _currentStep == _steps.Length - 1;
             NextButton.Content = isLast ? L("Dialog.GetStarted", "Get Started") : L("Dialog.Next", "Next");
 
             // Highlight active dot
@@ -165,15 +175,14 @@ namespace FluentTaskScheduler.Dialogs
         // ── Navigation ───────────────────────────────────────────────────────────
         private void NextButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentStep < Steps.Length - 1)
+            if (_currentStep < _steps.Length - 1)
             {
                 _currentStep++;
                 UpdateStep();
             }
             else
             {
-                // Final step — mark onboarding complete and close
-                Services.SettingsService.HasCompletedOnboarding = true;
+                // Final step — the Closed handler marks onboarding complete.
                 this.Hide();
             }
         }

@@ -84,11 +84,44 @@ namespace FluentTaskScheduler.ViewModels
             ApplyFilter(_currentFilter);
         }
 
+        internal static readonly string _userScriptsDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FluentTaskScheduler", "Scripts");
+
         public void DeleteUserTemplate(ScriptTemplateModel model)
         {
             _allScripts.Remove(model);
             SaveUserTemplates();
             ApplyFilter(_currentFilter);
+            DeleteBackingScriptFileIfOwned(model);
+        }
+
+        /// <summary>
+        /// Deletes the .ps1 file a Script Editor-saved template points at, if any. Without this,
+        /// removing the template left an orphaned script under LocalAppData\Scripts forever — and
+        /// if any scheduled task still referenced that file's path directly, that task would now
+        /// silently fail to run (see 2.9).
+        /// </summary>
+        internal static void DeleteBackingScriptFileIfOwned(ScriptTemplateModel model)
+        {
+            try
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(model.Arguments ?? "", "-File\\s+\"([^\"]+)\"");
+                if (!match.Success) return;
+
+                string scriptPath = match.Groups[1].Value;
+                string fullScriptPath = Path.GetFullPath(scriptPath);
+                string fullScriptsDir = Path.GetFullPath(_userScriptsDir);
+
+                if (fullScriptPath.StartsWith(fullScriptsDir, StringComparison.OrdinalIgnoreCase) && File.Exists(fullScriptPath))
+                {
+                    File.Delete(fullScriptPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Services.LogService.Warn($"Could not delete backing script file for template '{model.Name}': {ex.Message}");
+            }
         }
 
         /// <summary>Filters the displayed <see cref="Scripts"/> by name or description. Empty/null clears the filter.</summary>
