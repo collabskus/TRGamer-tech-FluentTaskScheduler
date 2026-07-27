@@ -267,8 +267,11 @@ namespace FluentTaskScheduler.ViewModels
         public bool IsLoading
         {
             get => _isLoading;
-            set { _isLoading = value; OnPropertyChanged(); }
+            set { _isLoading = value; OnPropertyChanged(); OnPropertyChanged(nameof(ContentVisible)); }
         }
+
+        /// <summary>Hides all figures while a load is in flight, so stale/zeroed numbers never flash on screen.</summary>
+        public Visibility ContentVisible => IsLoading ? Visibility.Collapsed : Visibility.Visible;
 
         // ── Analytics surface ───────────────────────────────────────────────────
 
