@@ -4,119 +4,118 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI;
 using FluentTaskScheduler.ViewModels;
 
-namespace FluentTaskScheduler.Converters
+namespace FluentTaskScheduler.Converters;
+
+public class StateToIconConverter : IValueConverter
 {
-    public class StateToIconConverter : IValueConverter
+    public object Convert(object value, Type targetType, object parameter, string language)
     {
-        public object Convert(object value, Type targetType, object parameter, string language)
+        string state = value?.ToString() ?? "";
+        return state switch
         {
-            string state = value?.ToString() ?? "";
-            return state switch
-            {
-                "Running" => "\uE768", // Play
-                "Ready" => "\uE73E",   // Accept
-                "Disabled" => "\uE711", // X (Cancel)
-                _ => "\uE9CE"          // Help
-            };
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+            "Running" => "\uE768", // Play
+            "Ready" => "\uE73E",   // Accept
+            "Disabled" => "\uE711", // X (Cancel)
+            _ => "\uE9CE"          // Help
+        };
     }
 
-    public class StateToColorConverter : IValueConverter
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class StateToColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
     {
-        public object Convert(object value, Type targetType, object parameter, string language)
+        string state = value?.ToString() ?? "";
+        var color = state switch
         {
-            string state = value?.ToString() ?? "";
-            var color = state switch
-            {
-                "Running" => Colors.Green,
-                "Ready" => Colors.RoyalBlue,
-                "Disabled" => Colors.Gray,
-                _ => Colors.Orange
-            };
-            return new SolidColorBrush(color);
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+            "Running" => Colors.Green,
+            "Ready" => Colors.RoyalBlue,
+            "Disabled" => Colors.Gray,
+            _ => Colors.Orange
+        };
+        return new SolidColorBrush(color);
     }
 
-    public class DateTimeConverter : IValueConverter
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class DateTimeConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
     {
-        public object Convert(object value, Type targetType, object parameter, string language)
+        if (value is DateTime dt)
         {
-            if (value is DateTime dt)
-            {
-                return dt.ToString("g");
-            }
-            return "N/A";
+            return dt.ToString("g");
         }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+        return "N/A";
     }
 
-    /// <summary>Returns Visible when the bool is true.</summary>
-    public class BoolToVisibilityConverter : IValueConverter
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+/// <summary>Returns Visible when the bool is true.</summary>
+public class BoolToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+        => value is true ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+/// <summary>Returns Collapsed when the bool is true (inverse).</summary>
+public class InverseBoolToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+        => value is true ? Visibility.Collapsed : Visibility.Visible;
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class StringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+        => !string.IsNullOrWhiteSpace(value?.ToString()) ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class BoolToOpacityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+        => value is true ? 0.4 : 1.0;
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class InverseBoolConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+        => value is not true;
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+        => value is not true;
+}
+
+public class RunningToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
     {
-        public object Convert(object value, Type targetType, object parameter, string language)
-            => value is true ? Visibility.Visible : Visibility.Collapsed;
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+        if (value is QuickActionStatus status)
+            return status == QuickActionStatus.Running ? Visibility.Visible : Visibility.Collapsed;
+        return Visibility.Collapsed;
     }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
 
-    /// <summary>Returns Collapsed when the bool is true (inverse).</summary>
-    public class InverseBoolToVisibilityConverter : IValueConverter
+public class InverseStatusToBoolConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
     {
-        public object Convert(object value, Type targetType, object parameter, string language)
-            => value is true ? Visibility.Collapsed : Visibility.Visible;
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+        if (value is QuickActionStatus status)
+            return status != QuickActionStatus.Running;
+        return true;
     }
-
-    public class StringToVisibilityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-            => !string.IsNullOrWhiteSpace(value?.ToString()) ? Visibility.Visible : Visibility.Collapsed;
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
-    }
-
-    public class BoolToOpacityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-            => value is true ? 0.4 : 1.0;
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
-    }
-
-    public class InverseBoolConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-            => value is not true;
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language)
-            => value is not true;
-    }
-
-    public class RunningToVisibilityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-        {
-            if (value is QuickActionStatus status)
-                return status == QuickActionStatus.Running ? Visibility.Visible : Visibility.Collapsed;
-            return Visibility.Collapsed;
-        }
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
-    }
-
-    public class InverseStatusToBoolConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-        {
-            if (value is QuickActionStatus status)
-                return status != QuickActionStatus.Running;
-            return true;
-        }
-        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
-    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }

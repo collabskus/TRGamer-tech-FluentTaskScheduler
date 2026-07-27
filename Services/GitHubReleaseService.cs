@@ -1,53 +1,52 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace FluentTaskScheduler.Services
+namespace FluentTaskScheduler.Services;
+
+public class GitHubRelease
 {
-    public class GitHubRelease
+    [JsonPropertyName("tag_name")]
+    public string TagName { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("body")]
+    public string Body { get; set; } = "";
+
+    [JsonPropertyName("html_url")]
+    public string HtmlUrl { get; set; } = "";
+}
+
+public static class GitHubReleaseService
+{
+    private static readonly HttpClient _http = new()
     {
-        [JsonPropertyName("tag_name")]
-        public string TagName { get; set; } = "";
+        DefaultRequestHeaders =
+        {
+            { "User-Agent", "FluentTaskScheduler" },
+            { "Accept", "application/vnd.github+json" }
+        },
+        Timeout = TimeSpan.FromSeconds(10)
+    };
 
-        [JsonPropertyName("name")]
-        public string Name { get; set; } = "";
+    private const string ApiUrl =
+        "https://api.github.com/repos/TRGamer-tech/FluentTaskScheduler/releases/latest";
 
-        [JsonPropertyName("body")]
-        public string Body { get; set; } = "";
-
-        [JsonPropertyName("html_url")]
-        public string HtmlUrl { get; set; } = "";
-    }
-
-    public static class GitHubReleaseService
+    /// <summary>
+    /// Fetches the latest GitHub release. Returns null on any error (network, parse, etc.).
+    /// </summary>
+    public static async Task<GitHubRelease?> GetLatestReleaseAsync()
     {
-        private static readonly HttpClient _http = new()
+        try
         {
-            DefaultRequestHeaders =
-            {
-                { "User-Agent", "FluentTaskScheduler" },
-                { "Accept", "application/vnd.github+json" }
-            },
-            Timeout = TimeSpan.FromSeconds(10)
-        };
-
-        private const string ApiUrl =
-            "https://api.github.com/repos/TRGamer-tech/FluentTaskScheduler/releases/latest";
-
-        /// <summary>
-        /// Fetches the latest GitHub release. Returns null on any error (network, parse, etc.).
-        /// </summary>
-        public static async Task<GitHubRelease?> GetLatestReleaseAsync()
+            string json = await _http.GetStringAsync(ApiUrl);
+            return JsonSerializer.Deserialize<GitHubRelease>(json);
+        }
+        catch (Exception ex)
         {
-            try
-            {
-                string json = await _http.GetStringAsync(ApiUrl);
-                return JsonSerializer.Deserialize<GitHubRelease>(json);
-            }
-            catch (Exception ex)
-            {
-                LogService.Info($"[GitHubReleaseService] Could not fetch release notes: {ex.Message}");
-                return null;
-            }
+            LogService.Info($"[GitHubReleaseService] Could not fetch release notes: {ex.Message}");
+            return null;
         }
     }
 }

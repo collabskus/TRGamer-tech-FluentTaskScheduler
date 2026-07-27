@@ -1,79 +1,78 @@
-namespace FluentTaskScheduler.Services
+namespace FluentTaskScheduler.Services;
+
+/// <summary>
+/// Background service that fires toast reminders for tasks that are about to run.
+/// Checks every minute; notifies once per (task, scheduled-run-time) pair.
+/// </summary>
+public static class ReminderService
 {
-    /// <summary>
-    /// Background service that fires toast reminders for tasks that are about to run.
-    /// Checks every minute; notifies once per (task, scheduled-run-time) pair.
-    /// </summary>
-    public static class ReminderService
+    private static Timer? _timer;
+    private static readonly HashSet<string> _notifiedKeys = new();
+    private static readonly object _lock = new();
+
+    public static void Start()
     {
-        private static Timer? _timer;
-        private static readonly HashSet<string> _notifiedKeys = new();
-        private static readonly object _lock = new();
+        Stop();
+        _timer = new Timer(CheckUpcomingTasks, null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
+        LogService.Info("ReminderService started.");
+    }
 
-        public static void Start()
+    public static void Stop()
+    {
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    private static void CheckUpcomingTasks(object? state)
+    {
+        if (!SettingsService.ShowNotifications || !SettingsService.EnableUpcomingReminders)
+            return;
+
+        try
         {
-            Stop();
-            _timer = new Timer(CheckUpcomingTasks, null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
-            LogService.Info("ReminderService started.");
-        }
+            var taskService = new TaskServiceWrapper();
+            var tasks = taskService.GetAllTasks(recursive: true);
+            var now = DateTime.Now;
+            int leadMinutes = SettingsService.ReminderLeadMinutes;
 
-        public static void Stop()
-        {
-            _timer?.Dispose();
-            _timer = null;
-        }
-
-        private static void CheckUpcomingTasks(object? state)
-        {
-            if (!SettingsService.ShowNotifications || !SettingsService.EnableUpcomingReminders)
-                return;
-
-            try
+            // Prevent unbounded growth across long sessions
+            lock (_lock)
             {
-                var taskService = new TaskServiceWrapper();
-                var tasks = taskService.GetAllTasks(recursive: true);
-                var now = DateTime.Now;
-                int leadMinutes = SettingsService.ReminderLeadMinutes;
+                if (_notifiedKeys.Count > 1000)
+                    _notifiedKeys.Clear();
+            }
 
-                // Prevent unbounded growth across long sessions
+            foreach (var task in tasks)
+            {
+                if (!task.IsEnabled || !task.NextRunTime.HasValue)
+                    continue;
+
+                var nextRun = task.NextRunTime.Value;
+                var timeUntil = nextRun - now;
+
+                // Only notify if within the lead window and still in the future
+                if (timeUntil.TotalMinutes < 0 || timeUntil.TotalMinutes > leadMinutes)
+                    continue;
+
+                // Key is unique per task + scheduled run time — prevents duplicate toasts
+                string key = $"{task.Path}|{nextRun:O}";
+                bool alreadyNotified;
                 lock (_lock)
                 {
-                    if (_notifiedKeys.Count > 1000)
-                        _notifiedKeys.Clear();
+                    alreadyNotified = !_notifiedKeys.Add(key);
                 }
 
-                foreach (var task in tasks)
+                if (!alreadyNotified)
                 {
-                    if (!task.IsEnabled || !task.NextRunTime.HasValue)
-                        continue;
-
-                    var nextRun = task.NextRunTime.Value;
-                    var timeUntil = nextRun - now;
-
-                    // Only notify if within the lead window and still in the future
-                    if (timeUntil.TotalMinutes < 0 || timeUntil.TotalMinutes > leadMinutes)
-                        continue;
-
-                    // Key is unique per task + scheduled run time — prevents duplicate toasts
-                    string key = $"{task.Path}|{nextRun:O}";
-                    bool alreadyNotified;
-                    lock (_lock)
-                    {
-                        alreadyNotified = !_notifiedKeys.Add(key);
-                    }
-
-                    if (!alreadyNotified)
-                    {
-                        int minutes = (int)Math.Ceiling(timeUntil.TotalMinutes);
-                        NotificationService.ShowUpcomingTask(task.Name, minutes);
-                        LogService.Info($"Reminder sent for task '{task.Name}' (runs in ~{minutes} min).");
-                    }
+                    int minutes = (int)Math.Ceiling(timeUntil.TotalMinutes);
+                    NotificationService.ShowUpcomingTask(task.Name, minutes);
+                    LogService.Info($"Reminder sent for task '{task.Name}' (runs in ~{minutes} min).");
                 }
             }
-            catch (Exception ex)
-            {
-                LogService.Error("ReminderService check failed", ex);
-            }
+        }
+        catch (Exception ex)
+        {
+            LogService.Error("ReminderService check failed", ex);
         }
     }
 }
