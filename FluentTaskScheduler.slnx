@@ -1,10 +1,12 @@
 <Solution>
   <Configurations>
-    <Platform Name="ARM64" />
+    <Config Name="Debug" />
+    <Config Name="Release" />
     <Platform Name="x64" />
+    <Platform Name="ARM64" />
   </Configurations>
   <Project Path="FluentTaskScheduler.csproj">
-    <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
   </Project>
 </Solution>
