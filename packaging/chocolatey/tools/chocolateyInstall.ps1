@@ -9,11 +9,11 @@ $isArm64 = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') -or ($env:PROCESSOR_ARCHITE
 
 # Use correct 'V' prefix for GitHub release tag
 $pkgUrl = "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V$version/Setup-x64.msi"
-$pkgHash = '833360EBB51466EE2C207FBB0BBFC7327FD1E31D125E64249F71BEF9DE11A944'
+$pkgHash = 'AFAD2A1E61E4B3F87C1EE2B7ED4E55CFAC9B13DBC5AF7CA99745DA4977539362'
 
 if ($isArm64) {
     $pkgUrl = "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V$version/Setup-arm64.msi"
-    $pkgHash = '99659DF3FB0C06113BA966A561BE4E7AA711FF2C06EEF9C976B035849953450D'
+    $pkgHash = '8CDF80B8DAD1D75F5D107CEFB5A3626DBC3FB627911C978641AF51771D2A54D1'
 }
 
 # Chocolatey's helpers only expose url/checksum (32-bit) and url64bit/checksum64 (64-bit) — there is

@@ -32,6 +32,10 @@
   throughput, and a filterable live execution log (Success / Failed / Snoozed).
 - Replaced the old per-task history polling with a single bulk read of the Task Scheduler event log,
   which is both faster and the basis for the new analytics.
+- The Dashboard now fills the full available width instead of being centred inside a fixed 1400px
+  column, which left large empty gutters on either side with the sidebar open (#20).
+- All figures stay hidden until a load finishes, so partially-populated or zeroed statistics no
+  longer flash on screen while the Dashboard is refreshing.
 
 ### Library: Task Templates + Scripts, merged
 - Merged the separate Script Library and a new Task Template Library into one "Library" page with a
