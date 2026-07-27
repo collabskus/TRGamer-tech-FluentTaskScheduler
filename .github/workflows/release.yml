@@ -30,10 +30,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -91,7 +91,7 @@ jobs:
           Get-Item "Releases/${{ matrix.platform }}/FluentTaskScheduler-$v-delta.nupkg" -ErrorAction SilentlyContinue | Copy-Item -Destination "Dist/" -Force
 
       - name: Upload Dist artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: Dist-${{ matrix.platform }}
           path: Dist/
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all Dist artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: Dist-*
           path: Dist
