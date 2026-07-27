@@ -204,16 +204,6 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details
 - **Preferences storage**: The application stores its preferences as well as the log and custom script files in a JSON file in "%localappdata%\FluentTaskScheduler".
 - **Portable distribution**: The portable release is a **ZIP archive** (folder), not a single `.exe`. WinUI 3 requires its native runtime DLLs to be present alongside the executable; single-file bundling is not supported and will crash on startup.
 
-## Star History
-
-<a href="https://www.star-history.com/#TRGamer-tech/FluentTaskScheduler&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TRGamer-tech/FluentTaskScheduler&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TRGamer-tech/FluentTaskScheduler&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=TRGamer-tech/FluentTaskScheduler&type=date&legend=top-left" />
- </picture>
-</a>
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
