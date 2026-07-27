@@ -31,7 +31,7 @@ public static class GitHubReleaseService
     };
 
     private const string ApiUrl =
-        "https://api.github.com/repos/TRGamer-tech/FluentTaskScheduler/releases/latest";
+        "https://api.github.com/repos/collabskus/TRGamer-tech-FluentTaskScheduler/releases/latest";
 
     /// <summary>
     /// Fetches the latest GitHub release. Returns null on any error (network, parse, etc.).

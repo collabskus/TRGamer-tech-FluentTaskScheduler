@@ -34,7 +34,7 @@ If you like what this project is for, I would really appreciate a (optional!) do
 
 ## Installation instructions
 ### Manually
-Go to the [Releases Page](https://github.com/TRGamer-tech/FluentTaskScheduler/releases) and download the newest version. Two formats are available per architecture (x64 / ARM64):
+Go to the [Releases Page](https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler/releases) and download the newest version. Two formats are available per architecture (x64 / ARM64):
 - **Setup MSI** — Traditional installer with per-user or machine-wide options.
 - **Portable ZIP** — Extract anywhere and run. No installation required.
 

@@ -132,7 +132,7 @@ The three required files follow the [winget multi-file manifest schema v1.6](htt
 5. Fork [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) and copy the three files to:
 
    ```
-   manifests/t/TRGamer-tech/FluentTaskScheduler/<version>/
+   manifests/t/collabskus/TRGamer-tech-FluentTaskScheduler/<version>/
    ```
 
 6. Open a Pull Request. Automated validation runs; once it passes a maintainer will merge it.
@@ -141,8 +141,8 @@ The three required files follow the [winget multi-file manifest schema v1.6](htt
 > ```powershell
 > winget install wingetcreate
 > wingetcreate update TRGamer-tech.FluentTaskScheduler --version 1.8.1 `
->   --urls "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.8.1/Setup-x64.msi|x64|msi" `
->          "https://github.com/TRGamer-tech/FluentTaskScheduler/releases/download/V1.8.1/Setup-arm64.msi|arm64|msi" `
+>   --urls "https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler/releases/download/V1.8.1/Setup-x64.msi|x64|msi" `
+>          "https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler/releases/download/V1.8.1/Setup-arm64.msi|arm64|msi" `
 >   --submit
 > ```
 

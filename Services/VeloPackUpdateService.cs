@@ -6,7 +6,7 @@ namespace FluentTaskScheduler.Services;
 
 public static class VeloPackUpdateService
 {
-    private const string GitHubRepoUrl = "https://github.com/TRGamer-tech/FluentTaskScheduler";
+    private const string GitHubRepoUrl = "https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler";
 
     private static UpdateManager? _updateManager;
 

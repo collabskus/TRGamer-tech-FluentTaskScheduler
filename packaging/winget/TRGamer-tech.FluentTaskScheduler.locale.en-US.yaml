@@ -5,11 +5,11 @@ PackageVersion: 1.9.0
 PackageLocale: en-US
 Publisher: TRGamer-tech
 PublisherUrl: https://github.com/TRGamer-tech
-PublisherSupportUrl: https://github.com/TRGamer-tech/FluentTaskScheduler/issues
+PublisherSupportUrl: https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler/issues
 PackageName: FluentTaskScheduler
-PackageUrl: https://github.com/TRGamer-tech/FluentTaskScheduler
+PackageUrl: https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler
 License: MIT
-LicenseUrl: https://github.com/TRGamer-tech/FluentTaskScheduler/blob/main/LICENSE
+LicenseUrl: https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler/blob/main/LICENSE
 Copyright: Copyright (c) TRGamer-tech
 ShortDescription: A modern WinUI 3 wrapper for the Windows Task Scheduler.
 Description: |-
@@ -28,7 +28,7 @@ Tags:
   - productivity
 Documentations:
   - DocumentLabel: README
-    DocumentUrl: https://github.com/TRGamer-tech/FluentTaskScheduler/blob/main/README.md
-ReleaseNotesUrl: https://github.com/TRGamer-tech/FluentTaskScheduler/releases/tag/V1.9.0
+    DocumentUrl: https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler/blob/main/README.md
+ReleaseNotesUrl: https://github.com/collabskus/TRGamer-tech-FluentTaskScheduler/releases/tag/V1.9.0
 ManifestType: defaultLocale
 ManifestVersion: 1.12.0
