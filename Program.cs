@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;

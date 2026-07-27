@@ -1,4 +1,3 @@
-using System;
 using Microsoft.Toolkit.Uwp.Notifications;
 
 namespace FluentTaskScheduler.Services

@@ -1,13 +1,10 @@
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using FluentTaskScheduler.Helpers;
 using FluentTaskScheduler.Services;
 using Microsoft.UI;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml;
 

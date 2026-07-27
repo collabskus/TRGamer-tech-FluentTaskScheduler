@@ -1,11 +1,7 @@
-using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
-using Microsoft.UI.Xaml.Media;
-using System;
-using System.Collections.Generic;
 
 namespace FluentTaskScheduler.Dialogs
 {

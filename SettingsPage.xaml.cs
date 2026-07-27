@@ -1,12 +1,8 @@
-using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using FluentTaskScheduler.Services;
-using Windows.Storage.Pickers;
 using Microsoft.UI.Xaml.Input;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace FluentTaskScheduler
 {

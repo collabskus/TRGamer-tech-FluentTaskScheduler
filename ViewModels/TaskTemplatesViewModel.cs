@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using FluentTaskScheduler.Models;
 using FluentTaskScheduler.Services;
 using Microsoft.UI.Xaml;

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Windows.ApplicationModel.Resources;
 using Windows.ApplicationModel.Resources.Core;
 

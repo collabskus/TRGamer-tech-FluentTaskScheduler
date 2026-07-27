@@ -4,14 +4,10 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using System.Collections.ObjectModel;
-using System.Collections.Generic;
 using FluentTaskScheduler.Models;
 using FluentTaskScheduler.Services;
-using System.Threading.Tasks;
-using System.Linq;
 using Microsoft.UI.Dispatching;
 using FluentTaskScheduler.ViewModels;
-using System;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace FluentTaskScheduler
