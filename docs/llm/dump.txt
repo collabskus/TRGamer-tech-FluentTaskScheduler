@@ -7,7 +7,7 @@
 
 DUMP METADATA
 ═════════════════════════════════════════════════════════════════════════════════
-  Generated at   : 2026-07-27T16:01:34-04:00
+  Generated at   : 2026-07-27T16:05:20-04:00
   Generator      : export.ps1
   Host           : DESKTOP-ATEFPOU
   User           : kushal
@@ -17,10 +17,10 @@ REPOSITORY METADATA
 ═════════════════════════════════════════════════════════════════════════════════
   Repository root: D:/DEV/personal/FluentTaskScheduler
   Branch         : dotnet10
-  Commit (full)  : 4b17c33392d3221055ef97dea9923d923feb374a
-  Commit (short) : 4b17c33
-  Commit date    : 2026-07-27 15:41:25 -0400
-  Commit message : update links
+  Commit (full)  : 7e04e30be43a6ee24220699a8b5299b358dde5be
+  Commit (short) : 7e04e30
+  Commit date    : 2026-07-27 16:01:40 -0400
+  Commit message : update dump
   Remote origin  : https://github.com/TRGamer-tech/FluentTaskScheduler.git
   Files included : 121
   Excluded path  : docs/llm/
@@ -28,7 +28,7 @@ REPOSITORY METADATA
 
 GIT WORKING TREE STATUS (first 20 lines)
 ═════════════════════════════════════════════════════════════════════════════════
-?? export.ps1
+  (clean — no uncommitted changes)
 
 ################################################################################
 # FILE: export.ps1  [THIS SCRIPT — included for full context]
@@ -43,7 +43,7 @@ GIT WORKING TREE STATUS (first 20 lines)
   Permissions:           Archive
   MIME type:             text/x-powershell
   SHA-256:               6aa394a7d13c85674383925e321d9a52fff4aa93c42ed48800ae8916473213d9
-  Last git commit:       (not yet committed)
+  Last git commit:       7e04e30 2026-07-27 16:01:40 -0400 update dump
 
 --- CONTENT ---
 #!/usr/bin/env pwsh
@@ -25683,7 +25683,7 @@ public class TaskTemplatesViewModel
   Files dumped   : 121
   Total size     : 7.8 MiB (8153747 bytes)
   Output file    : D:/DEV/personal/FluentTaskScheduler/docs/llm/dump.txt
-  Completed at   : 2026-07-27T16:01:40-04:00
+  Completed at   : 2026-07-27T16:05:26-04:00
 ################################################################################
 # END OF DUMP
 ################################################################################
